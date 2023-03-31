@@ -1,0 +1,24 @@
+# permissions for end users to edit intelligenthorizontalpodautoscalers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: intelligenthorizontalpodautoscaler-editor-role
+rules:
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - intelligenthorizontalpodautoscalers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - intelligenthorizontalpodautoscalers/status
+  verbs:
+  - get

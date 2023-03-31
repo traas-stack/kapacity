@@ -1,0 +1,6 @@
+apiVersion: autoscaling.kapacity.traas.io/v1alpha1
+kind: IntelligentHorizontalPodAutoscaler
+metadata:
+  name: intelligenthorizontalpodautoscaler-sample
+spec:
+  # TODO(user): Add fields here

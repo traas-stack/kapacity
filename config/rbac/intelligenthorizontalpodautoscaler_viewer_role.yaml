@@ -1,0 +1,20 @@
+# permissions for end users to view intelligenthorizontalpodautoscalers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: intelligenthorizontalpodautoscaler-viewer-role
+rules:
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - intelligenthorizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - intelligenthorizontalpodautoscalers/status
+  verbs:
+  - get
