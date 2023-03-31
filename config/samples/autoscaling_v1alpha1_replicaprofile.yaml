@@ -1,0 +1,12 @@
+apiVersion: autoscaling.kapacity.traas.io/v1alpha1
+kind: ReplicaProfile
+metadata:
+  labels:
+    app.kubernetes.io/name: replicaprofile
+    app.kubernetes.io/instance: replicaprofile-sample
+    app.kubernetes.io/part-of: kapacity
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kapacity
+  name: replicaprofile-sample
+spec:
+  # TODO(user): Add fields here

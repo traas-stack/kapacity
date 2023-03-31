@@ -1,0 +1,144 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/status
+  verbs:
+  - get
+  - patch
+- apiGroups:
+  - '*'
+  resources:
+  - '*/scale'
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - horizontalportraits
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - horizontalportraits/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - horizontalportraits/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - intelligenthorizontalpodautoscalers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - intelligenthorizontalpodautoscalers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - intelligenthorizontalpodautoscalers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - replicaprofiles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - replicaprofiles/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - autoscaling.kapacity.traas.io
+  resources:
+  - replicaprofiles/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - custom.metrics.k8s.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - external.metrics.k8s.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch

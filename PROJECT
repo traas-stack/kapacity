@@ -1,0 +1,34 @@
+domain: kapacity.traas.io
+layout:
+- go.kubebuilder.io/v3
+projectName: kapacity
+repo: github.com/traas-stack/kapacity
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kapacity.traas.io
+  group: autoscaling
+  kind: ReplicaProfile
+  path: github.com/traas-stack/kapacity/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kapacity.traas.io
+  group: autoscaling
+  kind: IntelligentHorizontalPodAutoscaler
+  path: github.com/traas-stack/kapacity/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kapacity.traas.io
+  group: autoscaling
+  kind: HorizontalPortrait
+  path: github.com/traas-stack/kapacity/api/v1alpha1
+  version: v1alpha1
+version: "3"
