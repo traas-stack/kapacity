@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/pkg/util"
 )
 
@@ -59,7 +59,7 @@ func newCronTaskTriggerManager(eventTrigger chan event.GenericEvent) *cronTaskTr
 	}
 }
 
-func (m *cronTaskTriggerManager) StartCronTaskTrigger(taskKey types.NamespacedName, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, crons []v1alpha1.ReplicaCron) error {
+func (m *cronTaskTriggerManager) StartCronTaskTrigger(taskKey types.NamespacedName, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, crons []autoscalingv1alpha1.ReplicaCron) error {
 	hash, err := hashstructure.Hash(crons, hashstructure.FormatV2, nil)
 	if err != nil {
 		return fmt.Errorf("failed to hash crons: %v", err)
@@ -118,9 +118,9 @@ func (m *cronTaskTriggerManager) StopCronTaskTrigger(taskKey types.NamespacedNam
 	}
 }
 
-func getActiveReplicaCron(crons []v1alpha1.ReplicaCron) (*v1alpha1.ReplicaCron, time.Time, error) {
+func getActiveReplicaCron(crons []autoscalingv1alpha1.ReplicaCron) (*autoscalingv1alpha1.ReplicaCron, time.Time, error) {
 	var (
-		active     *v1alpha1.ReplicaCron
+		active     *autoscalingv1alpha1.ReplicaCron
 		expireTime time.Time
 	)
 	now := time.Now()
@@ -165,7 +165,7 @@ func newTimerTriggerManager(eventTrigger chan event.GenericEvent) *timerTriggerM
 	}
 }
 
-func (m *timerTriggerManager) StartTimerTrigger(ctx context.Context, timerKey types.NamespacedName, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, t time.Time) {
+func (m *timerTriggerManager) StartTimerTrigger(ctx context.Context, timerKey types.NamespacedName, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, t time.Time) {
 	cancellerV, ok := m.timerCancellerMap.Load(timerKey)
 	if ok {
 		canceller := cancellerV.(*timerCanceller)

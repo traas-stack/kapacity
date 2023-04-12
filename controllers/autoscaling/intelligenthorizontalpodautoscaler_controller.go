@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package controllers
+package autoscaling
 
 import (
 	"context"
@@ -43,7 +43,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
+	"github.com/traas-stack/kapacity/controllers"
 	portraitprovider "github.com/traas-stack/kapacity/pkg/portrait/provider"
 	"github.com/traas-stack/kapacity/pkg/util"
 )
@@ -58,7 +59,7 @@ type IntelligentHorizontalPodAutoscalerReconciler struct {
 	Scheme *runtime.Scheme
 	record.EventRecorder
 
-	PortraitProviders map[v1alpha1.HorizontalPortraitProviderType]portraitprovider.Horizontal
+	PortraitProviders map[autoscalingv1alpha1.HorizontalPortraitProviderType]portraitprovider.Horizontal
 	EventTrigger      chan event.GenericEvent
 
 	// portraitIdentifiersMap stores the last seen portrait identifiers of IHPAs.
@@ -68,7 +69,7 @@ type IntelligentHorizontalPodAutoscalerReconciler struct {
 }
 
 type horizontalPortraitValueWithPriority struct {
-	*v1alpha1.HorizontalPortraitValue
+	*autoscalingv1alpha1.HorizontalPortraitValue
 	Priority int32
 }
 
@@ -100,7 +101,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 
 	l.V(2).Info("start to reconcile")
 
-	ihpa := &v1alpha1.IntelligentHorizontalPodAutoscaler{}
+	ihpa := &autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler{}
 	if err := r.Get(ctx, req.NamespacedName, ihpa); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -110,7 +111,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 	}
 
 	if !ihpa.DeletionTimestamp.IsZero() {
-		if controllerutil.ContainsFinalizer(ihpa, finalizer) {
+		if controllerutil.ContainsFinalizer(ihpa, controllers.Finalizer) {
 			// FIXME(zqzten): do actual portrait cleanup
 			r.portraitIdentifiersMap.Delete(req.NamespacedName)
 
@@ -133,7 +134,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 		rp, err := r.getReplicaProfile(ctx, ihpa.Namespace, ihpa.Name)
 		if err != nil {
 			l.Error(err, "failed to get ReplicaProfile")
-			r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+			r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 				"FailedGetReplicaProfile", fmt.Sprintf("failed to get ReplicaProfile: %v", err))
 			return ctrl.Result{}, err
 		}
@@ -143,13 +144,13 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 			rp.Spec.Paused = true
 			if err := r.Patch(ctx, rp, patch); err != nil {
 				l.Error(err, "failed to patch ReplicaProfile")
-				r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+				r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 					"FailedUpdateReplicaProfile", fmt.Sprintf("failed to patch ReplicaProfile: %v", err))
 				return ctrl.Result{}, err
 			}
 		}
 
-		setIHPACondition(ihpa, v1alpha1.ScalingActive, metav1.ConditionFalse, "ScalingPaused", "scaling is paused")
+		setIHPACondition(ihpa, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse, "ScalingPaused", "scaling is paused")
 		if err := r.updateStatusIfNeeded(ctx, ihpa, ihpaStatusOriginal); err != nil {
 			l.Error(err, "failed to update status")
 			return ctrl.Result{}, err
@@ -161,13 +162,13 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 	l.V(2).Info("fetched portrait value", "horizontalPortraitValue", portraitValue)
 	if err != nil {
 		l.Error(err, "failed to update and fetch portrait value")
-		r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+		r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 			"FailedUpdateAndFetchPortraitValue", fmt.Sprintf("failed to update and fetch portrait value: %v", err))
 		return ctrl.Result{}, err
 	}
 	if portraitValue == nil {
 		l.Info("no valid portrait value")
-		r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+		r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 			"NoValidPortraitValue", "no valid portrait value for now")
 		return ctrl.Result{}, nil
 	}
@@ -178,7 +179,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 		}
 		ihpa.Status.CurrentPortraitValue = portraitValue
 		if isIHPAGrayActive(ihpa) {
-			ihpa.Status.Gray = &v1alpha1.GrayStatus{LastUpdateTime: metav1.Now()}
+			ihpa.Status.Gray = &autoscalingv1alpha1.GrayStatus{LastUpdateTime: metav1.Now()}
 		}
 		if err := r.updateStatusIfNeeded(ctx, ihpa, ihpaStatusOriginal); err != nil {
 			l.Error(err, "failed to update status")
@@ -189,7 +190,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 	rp, err := r.getReplicaProfile(ctx, ihpa.Namespace, ihpa.Name)
 	if err != nil {
 		l.Error(err, "failed to get ReplicaProfile")
-		r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+		r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 			"FailedGetReplicaProfile", fmt.Sprintf("failed to get ReplicaProfile: %v", err))
 		return ctrl.Result{}, err
 	}
@@ -197,7 +198,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 	var grayRemainTime time.Duration
 
 	switch ihpa.Spec.ScaleMode {
-	case v1alpha1.ScaleModeAuto:
+	case autoscalingv1alpha1.ScaleModeAuto:
 		var (
 			replicaData *replicaData
 			replicaCap  replicaCap
@@ -205,13 +206,13 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 		replicaData, replicaCap, grayRemainTime = generateIHPAReplicaData(ihpa)
 		switch replicaCap {
 		case noneCap:
-			setIHPACondition(ihpa, v1alpha1.ScalingLimited, metav1.ConditionFalse, "DesiredWithinRange",
+			setIHPACondition(ihpa, autoscalingv1alpha1.ScalingLimited, metav1.ConditionFalse, "DesiredWithinRange",
 				"the desired replica count of current portrait value is within the acceptable range")
 		case minCap:
-			setIHPACondition(ihpa, v1alpha1.ScalingLimited, metav1.ConditionTrue, "TooFewReplicas",
+			setIHPACondition(ihpa, autoscalingv1alpha1.ScalingLimited, metav1.ConditionTrue, "TooFewReplicas",
 				"the desired replica count of current portrait value is less than the minimum replica count")
 		case maxCap:
-			setIHPACondition(ihpa, v1alpha1.ScalingLimited, metav1.ConditionTrue, "TooManyReplicas",
+			setIHPACondition(ihpa, autoscalingv1alpha1.ScalingLimited, metav1.ConditionTrue, "TooManyReplicas",
 				"the desired replica count of current portrait value is more than the maximum replica count")
 		}
 
@@ -226,7 +227,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 
 			if err := r.Create(ctx, rp); err != nil {
 				l.Error(err, "failed to create ReplicaProfile")
-				r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+				r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 					"FailedCreateReplicaProfile", fmt.Sprintf("failed to create ReplicaProfile: %v", err))
 				return ctrl.Result{}, err
 			}
@@ -259,7 +260,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 				patch := client.MergeFrom(originalRP)
 				if err := r.Patch(ctx, rp, patch); err != nil {
 					l.Error(err, "failed to patch ReplicaProfile")
-					r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+					r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 						"FailedUpdateReplicaProfile", fmt.Sprintf("failed to patch ReplicaProfile: %v", err))
 					return ctrl.Result{}, err
 				}
@@ -267,24 +268,24 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 		}
 
 		if ihpa.Status.CurrentPortraitValue.Replicas == rp.Spec.OnlineReplicas {
-			setIHPACondition(ihpa, v1alpha1.GrayProgressing, metav1.ConditionFalse, "ReplicasMatchPortrait",
+			setIHPACondition(ihpa, autoscalingv1alpha1.GrayProgressing, metav1.ConditionFalse, "ReplicasMatchPortrait",
 				"online replica count matches replica count of current portrait value")
 		} else {
-			setIHPACondition(ihpa, v1alpha1.GrayProgressing, metav1.ConditionTrue, "ReplicasNotMatchPortrait",
+			setIHPACondition(ihpa, autoscalingv1alpha1.GrayProgressing, metav1.ConditionTrue, "ReplicasNotMatchPortrait",
 				"online replica count does not match replica count of current portrait value")
 		}
-	case v1alpha1.ScaleModePreview:
+	case autoscalingv1alpha1.ScaleModePreview:
 		if rp != nil {
 			if err := client.IgnoreNotFound(r.Delete(ctx, rp)); err != nil {
 				l.Error(err, "failed to delete ReplicaProfile")
-				r.errorOut(ctx, ihpa, ihpaStatusOriginal, v1alpha1.ScalingActive, metav1.ConditionFalse,
+				r.errorOut(ctx, ihpa, ihpaStatusOriginal, autoscalingv1alpha1.ScalingActive, metav1.ConditionFalse,
 					"FailedDeleteReplicaProfile", fmt.Sprintf("failed to delete ReplicaProfile: %v", err))
 				return ctrl.Result{}, err
 			}
 		}
 	}
 
-	setIHPACondition(ihpa, v1alpha1.ScalingActive, metav1.ConditionTrue, "SucceededAutoscaling", "the autoscaling process is functional")
+	setIHPACondition(ihpa, autoscalingv1alpha1.ScalingActive, metav1.ConditionTrue, "SucceededAutoscaling", "the autoscaling process is functional")
 	if err := r.updateStatusIfNeeded(ctx, ihpa, ihpaStatusOriginal); err != nil {
 		l.Error(err, "failed to update status")
 		return ctrl.Result{}, err
@@ -297,9 +298,9 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 func (r *IntelligentHorizontalPodAutoscalerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(IHPAControllerName).
-		For(&v1alpha1.IntelligentHorizontalPodAutoscaler{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&v1alpha1.HorizontalPortrait{}).
-		Owns(&v1alpha1.ReplicaProfile{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&autoscalingv1alpha1.HorizontalPortrait{}).
+		Owns(&autoscalingv1alpha1.ReplicaProfile{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&source.Channel{Source: r.EventTrigger}, &handler.EnqueueRequestForObject{}).
 		WithOptions(controller.Options{
 			RecoverPanic: true,
@@ -307,13 +308,13 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) SetupWithManager(mgr ctrl
 		Complete(r)
 }
 
-func newReplicaProfile(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, replicaData *replicaData) *v1alpha1.ReplicaProfile {
+func newReplicaProfile(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, replicaData *replicaData) *autoscalingv1alpha1.ReplicaProfile {
 	behavior := defaultReplicaProfileBehavior()
 	if ihpa.Spec.Behavior.ReplicaProfile != nil {
 		behavior = *ihpa.Spec.Behavior.ReplicaProfile
 	}
 
-	return &v1alpha1.ReplicaProfile{
+	return &autoscalingv1alpha1.ReplicaProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ihpa.Namespace,
 			Name:      ihpa.Name,
@@ -321,7 +322,7 @@ func newReplicaProfile(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, replic
 				util.BuildControllerOwnerRef(ihpa),
 			},
 		},
-		Spec: v1alpha1.ReplicaProfileSpec{
+		Spec: autoscalingv1alpha1.ReplicaProfileSpec{
 			ScaleTargetRef:  ihpa.Spec.ScaleTargetRef,
 			OnlineReplicas:  replicaData.OnlineReplicas,
 			CutoffReplicas:  replicaData.CutoffReplicas,
@@ -332,18 +333,18 @@ func newReplicaProfile(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, replic
 	}
 }
 
-func defaultReplicaProfileBehavior() v1alpha1.ReplicaProfileBehavior {
-	return v1alpha1.ReplicaProfileBehavior{
-		PodSorter: v1alpha1.PodSorter{
-			Type: v1alpha1.WorkloadDefaultPodSorterType,
+func defaultReplicaProfileBehavior() autoscalingv1alpha1.ReplicaProfileBehavior {
+	return autoscalingv1alpha1.ReplicaProfileBehavior{
+		PodSorter: autoscalingv1alpha1.PodSorter{
+			Type: autoscalingv1alpha1.WorkloadDefaultPodSorterType,
 		},
-		PodTrafficController: v1alpha1.PodTrafficController{
-			Type: v1alpha1.ReadinessGatePodTrafficControllerType,
+		PodTrafficController: autoscalingv1alpha1.PodTrafficController{
+			Type: autoscalingv1alpha1.ReadinessGatePodTrafficControllerType,
 		},
 	}
 }
 
-func (r *IntelligentHorizontalPodAutoscalerReconciler) updateAndFetchPortraitValue(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) (*v1alpha1.HorizontalPortraitValue, error) {
+func (r *IntelligentHorizontalPodAutoscalerReconciler) updateAndFetchPortraitValue(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) (*autoscalingv1alpha1.HorizontalPortraitValue, error) {
 	currentPortraitIdentifiers := sets.String{}
 	for _, providerCfg := range ihpa.Spec.PortraitProviders {
 		provider, ok := r.PortraitProviders[providerCfg.Type]
@@ -396,7 +397,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) updateAndFetchPortraitVal
 	return validPortraitValues[0].HorizontalPortraitValue, nil
 }
 
-func (r *IntelligentHorizontalPodAutoscalerReconciler) cleanupRemovedPortraits(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, previousPortraitIdentifiers, currentPortraitIdentifiers sets.String) error {
+func (r *IntelligentHorizontalPodAutoscalerReconciler) cleanupRemovedPortraits(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, previousPortraitIdentifiers, currentPortraitIdentifiers sets.String) error {
 	portraitsToCleanup := previousPortraitIdentifiers.Difference(currentPortraitIdentifiers)
 	for portraitToCleanup := range portraitsToCleanup {
 		typeAndIdentifier := strings.Split(portraitToCleanup, "/")
@@ -404,7 +405,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) cleanupRemovedPortraits(c
 			return fmt.Errorf("invalid portrait identifier key %q", typeAndIdentifier)
 		}
 		providerType, portraitIdentifier := typeAndIdentifier[0], typeAndIdentifier[1]
-		provider, ok := r.PortraitProviders[v1alpha1.HorizontalPortraitProviderType(providerType)]
+		provider, ok := r.PortraitProviders[autoscalingv1alpha1.HorizontalPortraitProviderType(providerType)]
 		if !ok {
 			return fmt.Errorf("unknown portrait provider type %q", providerType)
 		}
@@ -415,7 +416,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) cleanupRemovedPortraits(c
 	return nil
 }
 
-func generateIHPAReplicaData(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) (*replicaData, replicaCap, time.Duration) {
+func generateIHPAReplicaData(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) (*replicaData, replicaCap, time.Duration) {
 	currentPortraitValue := ihpa.Status.CurrentPortraitValue
 
 	replicaCap := noneCap
@@ -463,15 +464,15 @@ func generateIHPAReplicaData(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) 
 		// scale down
 		newOnlineReplicas = previousPortraitValue.Replicas - grayStateReplicas
 		switch grayStrategy.GrayState {
-		case v1alpha1.PodStateCutoff:
+		case autoscalingv1alpha1.PodStateCutoff:
 			newCutoffReplicas = grayStateReplicas
-		case v1alpha1.PodStateStandby:
+		case autoscalingv1alpha1.PodStateStandby:
 			newStandbyReplicas = grayStateReplicas
 		}
 	}
 
 	if remainTime == 0 {
-		ihpa.Status.Gray = &v1alpha1.GrayStatus{
+		ihpa.Status.Gray = &autoscalingv1alpha1.GrayStatus{
 			GrayPercent:    newGrayPercent,
 			LastUpdateTime: metav1.Now(),
 		}
@@ -483,8 +484,8 @@ func generateIHPAReplicaData(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) 
 	}, replicaCap, remainTime
 }
 
-func isIHPAGrayActive(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) bool {
-	if ihpa.Spec.ScaleMode == v1alpha1.ScaleModePreview {
+func isIHPAGrayActive(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) bool {
+	if ihpa.Spec.ScaleMode == autoscalingv1alpha1.ScaleModePreview {
 		return false
 	}
 
@@ -499,7 +500,7 @@ func isIHPAGrayActive(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) bool {
 		(behavior.ScaleDown.GrayStrategy != nil && currentPortraitValue.Replicas < previousPortraitValue.Replicas)
 }
 
-func calIHPAGrayRemainTime(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) time.Duration {
+func calIHPAGrayRemainTime(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) time.Duration {
 	grayStrategy := getCurrentGrayStrategy(ihpa)
 	grayPercent := ihpa.Status.Gray.GrayPercent
 	lastUpdateTime := ihpa.Status.Gray.LastUpdateTime
@@ -518,7 +519,7 @@ func calIHPAGrayRemainTime(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) ti
 	return remainingTime
 }
 
-func getCurrentGrayStrategy(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) *v1alpha1.GrayStrategy {
+func getCurrentGrayStrategy(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) *autoscalingv1alpha1.GrayStrategy {
 	previousPortraitValue := ihpa.Status.PreviousPortraitValue
 	currentPortraitValue := ihpa.Status.CurrentPortraitValue
 	if previousPortraitValue == nil || currentPortraitValue == nil {
@@ -533,8 +534,8 @@ func getCurrentGrayStrategy(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler) *
 	return nil
 }
 
-func (r *IntelligentHorizontalPodAutoscalerReconciler) getReplicaProfile(ctx context.Context, namespace, name string) (*v1alpha1.ReplicaProfile, error) {
-	rp := &v1alpha1.ReplicaProfile{}
+func (r *IntelligentHorizontalPodAutoscalerReconciler) getReplicaProfile(ctx context.Context, namespace, name string) (*autoscalingv1alpha1.ReplicaProfile, error) {
+	rp := &autoscalingv1alpha1.ReplicaProfile{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, rp)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -545,26 +546,26 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) getReplicaProfile(ctx con
 	return rp, nil
 }
 
-func (r *IntelligentHorizontalPodAutoscalerReconciler) ensureFinalizer(ctx context.Context, obj *v1alpha1.IntelligentHorizontalPodAutoscaler) error {
-	if controllerutil.ContainsFinalizer(obj, finalizer) {
+func (r *IntelligentHorizontalPodAutoscalerReconciler) ensureFinalizer(ctx context.Context, obj *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) error {
+	if controllerutil.ContainsFinalizer(obj, controllers.Finalizer) {
 		return nil
 	}
 	patch := client.MergeFrom(obj.DeepCopy())
-	controllerutil.AddFinalizer(obj, finalizer)
+	controllerutil.AddFinalizer(obj, controllers.Finalizer)
 	return r.Patch(ctx, obj, patch)
 }
 
-func (r *IntelligentHorizontalPodAutoscalerReconciler) removeFinalizer(ctx context.Context, obj *v1alpha1.IntelligentHorizontalPodAutoscaler) error {
-	if !controllerutil.ContainsFinalizer(obj, finalizer) {
+func (r *IntelligentHorizontalPodAutoscalerReconciler) removeFinalizer(ctx context.Context, obj *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) error {
+	if !controllerutil.ContainsFinalizer(obj, controllers.Finalizer) {
 		return nil
 	}
 	patch := client.MergeFrom(obj.DeepCopy())
-	controllerutil.RemoveFinalizer(obj, finalizer)
+	controllerutil.RemoveFinalizer(obj, controllers.Finalizer)
 	return r.Patch(ctx, obj, patch)
 }
 
-func (r *IntelligentHorizontalPodAutoscalerReconciler) errorOut(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, oldStatus *v1alpha1.IntelligentHorizontalPodAutoscalerStatus,
-	conditionType v1alpha1.IntelligentHorizontalPodAutoscalerConditionType, conditionStatus metav1.ConditionStatus, reason, message string) {
+func (r *IntelligentHorizontalPodAutoscalerReconciler) errorOut(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, oldStatus *autoscalingv1alpha1.IntelligentHorizontalPodAutoscalerStatus,
+	conditionType autoscalingv1alpha1.IntelligentHorizontalPodAutoscalerConditionType, conditionStatus metav1.ConditionStatus, reason, message string) {
 	r.Event(ihpa, corev1.EventTypeWarning, reason, message)
 	setIHPACondition(ihpa, conditionType, conditionStatus, reason, message)
 	if err := r.updateStatusIfNeeded(ctx, ihpa, oldStatus); err != nil {
@@ -572,7 +573,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) errorOut(ctx context.Cont
 	}
 }
 
-func (r *IntelligentHorizontalPodAutoscalerReconciler) updateStatusIfNeeded(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, oldStatus *v1alpha1.IntelligentHorizontalPodAutoscalerStatus) error {
+func (r *IntelligentHorizontalPodAutoscalerReconciler) updateStatusIfNeeded(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, oldStatus *autoscalingv1alpha1.IntelligentHorizontalPodAutoscalerStatus) error {
 	if apiequality.Semantic.DeepEqual(oldStatus, &ihpa.Status) {
 		return nil
 	}
@@ -583,6 +584,6 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) updateStatusIfNeeded(ctx 
 	return nil
 }
 
-func setIHPACondition(ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, conditionType v1alpha1.IntelligentHorizontalPodAutoscalerConditionType, status metav1.ConditionStatus, reason, message string) {
+func setIHPACondition(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, conditionType autoscalingv1alpha1.IntelligentHorizontalPodAutoscalerConditionType, status metav1.ConditionStatus, reason, message string) {
 	ihpa.Status.Conditions = util.SetConditionInList(ihpa.Status.Conditions, string(conditionType), status, ihpa.Generation, reason, message)
 }

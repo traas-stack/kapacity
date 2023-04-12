@@ -14,14 +14,12 @@
  limitations under the License.
 */
 
-package controllers
+package autoscaling
 
 import (
 	"context"
 	"path/filepath"
 	"testing"
-
-	autoscalingv1alpha1 "github.com/traas-stack/kapacity/api/v1alpha1"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -34,6 +32,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
+
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 )
 
 var cfg *rest.Config
@@ -55,7 +55,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
 

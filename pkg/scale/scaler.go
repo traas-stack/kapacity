@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv1 "k8s.io/api/autoscaling/v1"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,7 +44,7 @@ func NewScaler(scalesGetter scaleclient.ScalesGetter, restMapper apimeta.RESTMap
 }
 
 // GetScale return the scale as well as the group-resource of the specified scale target.
-func (s *Scaler) GetScale(ctx context.Context, namespace string, scaleTargetRef autoscalingv2.CrossVersionObjectReference) (*autoscalingv1.Scale, schema.GroupResource, error) {
+func (s *Scaler) GetScale(ctx context.Context, namespace string, scaleTargetRef k8sautoscalingv2.CrossVersionObjectReference) (*k8sautoscalingv1.Scale, schema.GroupResource, error) {
 	targetGV, err := schema.ParseGroupVersion(scaleTargetRef.APIVersion)
 	if err != nil {
 		return nil, schema.GroupResource{}, fmt.Errorf("invalid API version in scale target reference: %v", err)
@@ -68,7 +68,7 @@ func (s *Scaler) GetScale(ctx context.Context, namespace string, scaleTargetRef 
 // trying each RESTMapping in turn until a working one is found.
 // If none work, the first error is returned.
 // It returns both the scale, as well as the group-resource from the working mapping.
-func (s *Scaler) scaleForResourceMappings(ctx context.Context, namespace, name string, mappings []*apimeta.RESTMapping) (*autoscalingv1.Scale, schema.GroupResource, error) {
+func (s *Scaler) scaleForResourceMappings(ctx context.Context, namespace, name string, mappings []*apimeta.RESTMapping) (*k8sautoscalingv1.Scale, schema.GroupResource, error) {
 	var firstErr error
 	for i, mapping := range mappings {
 		targetGR := mapping.Resource.GroupResource()

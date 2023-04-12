@@ -22,13 +22,13 @@ import (
 	"math"
 	"time"
 
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/pkg/util"
 )
 
@@ -42,11 +42,11 @@ type replicaCalculator struct {
 }
 
 // ComputeReplicasForMetric computes the desired number of replicas for a specific metric specification.
-func (c *replicaCalculator) ComputeReplicasForMetric(ctx context.Context, currentReplicas int32, metric v1alpha1.MetricSpec, namespace string, selector labels.Selector) (int32, error) {
+func (c *replicaCalculator) ComputeReplicasForMetric(ctx context.Context, currentReplicas int32, metric autoscalingv1alpha1.MetricSpec, namespace string, selector labels.Selector) (int32, error) {
 	switch metric.Type {
-	case autoscalingv2.ResourceMetricSourceType:
+	case k8sautoscalingv2.ResourceMetricSourceType:
 		return c.ComputeReplicasForResourceMetric(ctx, currentReplicas, metric.Resource.Target, metric.Resource.Name, namespace, "", selector)
-	case autoscalingv2.ContainerResourceMetricSourceType:
+	case k8sautoscalingv2.ContainerResourceMetricSourceType:
 		return c.ComputeReplicasForResourceMetric(ctx, currentReplicas, metric.ContainerResource.Target, metric.ContainerResource.Name, namespace, metric.ContainerResource.Container, selector)
 	// TODO(zqzten): support more metric types
 	default:
@@ -55,7 +55,7 @@ func (c *replicaCalculator) ComputeReplicasForMetric(ctx context.Context, curren
 }
 
 // ComputeReplicasForResourceMetric computes the desired number of replicas for a specific resource metric specification.
-func (c *replicaCalculator) ComputeReplicasForResourceMetric(ctx context.Context, currentReplicas int32, target autoscalingv2.MetricTarget,
+func (c *replicaCalculator) ComputeReplicasForResourceMetric(ctx context.Context, currentReplicas int32, target k8sautoscalingv2.MetricTarget,
 	resourceName corev1.ResourceName, namespace string, container string, selector labels.Selector) (int32, error) {
 	if target.AverageValue != nil {
 		replicaCountProposal, err := c.getRawResourceReplicas(ctx, currentReplicas, target.AverageValue.MilliValue(), resourceName, namespace, selector, container)

@@ -17,7 +17,7 @@
 package metric
 
 import (
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -78,10 +78,10 @@ type ObjectQuery struct {
 	Namespace string
 	Name      string
 	Selector  labels.Selector
-	Metric    autoscalingv2.MetricIdentifier
+	Metric    k8sautoscalingv2.MetricIdentifier
 }
 
 type ExternalQuery struct {
 	Namespace string
-	Metric    autoscalingv2.MetricIdentifier
+	Metric    k8sautoscalingv2.MetricIdentifier
 }

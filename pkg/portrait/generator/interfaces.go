@@ -20,14 +20,14 @@ import (
 	"context"
 	"time"
 
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 )
 
 // Interface provide methods to generate portrait data.
 type Interface interface {
 	// GenerateHorizontal portrait data for the scale target with specified metrics spec and algorithm configuration.
 	// It returns the generated portrait data and an expected duration before next generating.
-	GenerateHorizontal(ctx context.Context, namespace string, scaleTargetRef autoscalingv2.CrossVersionObjectReference, metrics []v1alpha1.MetricSpec, algorithm v1alpha1.PortraitAlgorithm) (*v1alpha1.HorizontalPortraitData, time.Duration, error)
+	GenerateHorizontal(ctx context.Context, namespace string, scaleTargetRef k8sautoscalingv2.CrossVersionObjectReference, metrics []autoscalingv1alpha1.MetricSpec, algorithm autoscalingv1alpha1.PortraitAlgorithm) (*autoscalingv1alpha1.HorizontalPortraitData, time.Duration, error)
 }

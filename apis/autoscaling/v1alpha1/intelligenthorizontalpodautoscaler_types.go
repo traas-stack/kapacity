@@ -17,7 +17,7 @@
 package v1alpha1
 
 import (
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,7 +39,7 @@ type IntelligentHorizontalPodAutoscaler struct {
 // IntelligentHorizontalPodAutoscalerSpec defines the desired state of IntelligentHorizontalPodAutoscaler.
 type IntelligentHorizontalPodAutoscalerSpec struct {
 	// ScaleTargetRef points to the target resource to scale.
-	ScaleTargetRef autoscalingv2.CrossVersionObjectReference `json:"scaleTargetRef"`
+	ScaleTargetRef k8sautoscalingv2.CrossVersionObjectReference `json:"scaleTargetRef"`
 
 	// Paused means if the autoscaler is paused.
 	// +optional

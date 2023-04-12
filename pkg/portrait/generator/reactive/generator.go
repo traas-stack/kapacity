@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"time"
 
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 	portraitgenerator "github.com/traas-stack/kapacity/pkg/portrait/generator"
 	pkgscale "github.com/traas-stack/kapacity/pkg/scale"
@@ -55,11 +55,11 @@ func NewPortraitGenerator(client client.Client, metricProvider metricprovider.In
 	}
 }
 
-func (g *PortraitGenerator) GenerateHorizontal(ctx context.Context, namespace string, scaleTargetRef autoscalingv2.CrossVersionObjectReference, metrics []v1alpha1.MetricSpec, algorithm v1alpha1.PortraitAlgorithm) (*v1alpha1.HorizontalPortraitData, time.Duration, error) {
+func (g *PortraitGenerator) GenerateHorizontal(ctx context.Context, namespace string, scaleTargetRef k8sautoscalingv2.CrossVersionObjectReference, metrics []autoscalingv1alpha1.MetricSpec, algorithm autoscalingv1alpha1.PortraitAlgorithm) (*autoscalingv1alpha1.HorizontalPortraitData, time.Duration, error) {
 	l := log.FromContext(ctx)
 
 	switch algorithm.Type {
-	case v1alpha1.KubeHPAPortraitAlgorithmType:
+	case autoscalingv1alpha1.KubeHPAPortraitAlgorithmType:
 	default:
 		return nil, 0, fmt.Errorf("unsupported alogrithm type %q", algorithm.Type)
 	}
@@ -122,9 +122,9 @@ func (g *PortraitGenerator) GenerateHorizontal(ctx context.Context, namespace st
 	if invalidMetricsCount == len(metrics) || (invalidMetricsCount > 0 && replicas < specReplicas) {
 		return nil, 0, fmt.Errorf("invalid metrics (%d invalid out of %d), first error is: %v", invalidMetricsCount, len(metrics), invalidMetricError)
 	}
-	return &v1alpha1.HorizontalPortraitData{
-		Type: v1alpha1.StaticHorizontalPortraitDataType,
-		Static: &v1alpha1.StaticHorizontalPortraitData{
+	return &autoscalingv1alpha1.HorizontalPortraitData{
+		Type: autoscalingv1alpha1.StaticHorizontalPortraitDataType,
+		Static: &autoscalingv1alpha1.StaticHorizontalPortraitData{
 			Replicas: replicas,
 		},
 	}, syncPeriod, nil

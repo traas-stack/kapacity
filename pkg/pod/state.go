@@ -23,33 +23,33 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/pkg/pod/sorter"
 	"github.com/traas-stack/kapacity/pkg/util"
 )
 
 var (
-	defaultStatesOrdered = []v1alpha1.PodState{v1alpha1.PodStateOnline, v1alpha1.PodStateCutoff, v1alpha1.PodStateStandby, v1alpha1.PodStateDeleted}
-	runningStates        = []v1alpha1.PodState{v1alpha1.PodStateOnline, v1alpha1.PodStateCutoff, v1alpha1.PodStateStandby}
+	defaultStatesOrdered = []autoscalingv1alpha1.PodState{autoscalingv1alpha1.PodStateOnline, autoscalingv1alpha1.PodStateCutoff, autoscalingv1alpha1.PodStateStandby, autoscalingv1alpha1.PodStateDeleted}
+	runningStates        = []autoscalingv1alpha1.PodState{autoscalingv1alpha1.PodStateOnline, autoscalingv1alpha1.PodStateCutoff, autoscalingv1alpha1.PodStateStandby}
 )
 
 // GetState get the current State of pod.
-func GetState(pod *corev1.Pod) v1alpha1.PodState {
+func GetState(pod *corev1.Pod) autoscalingv1alpha1.PodState {
 	switch pod.Labels[LabelState] {
 	case "":
-		return v1alpha1.PodStateOnline
-	case string(v1alpha1.PodStateCutoff):
-		return v1alpha1.PodStateCutoff
-	case string(v1alpha1.PodStateStandby):
-		return v1alpha1.PodStateStandby
+		return autoscalingv1alpha1.PodStateOnline
+	case string(autoscalingv1alpha1.PodStateCutoff):
+		return autoscalingv1alpha1.PodStateCutoff
+	case string(autoscalingv1alpha1.PodStateStandby):
+		return autoscalingv1alpha1.PodStateStandby
 	}
 	// assume an unknown state to be online
-	return v1alpha1.PodStateOnline
+	return autoscalingv1alpha1.PodStateOnline
 }
 
 // SetState set State to pod.
-func SetState(pod *corev1.Pod, state v1alpha1.PodState) {
-	if state == v1alpha1.PodStateOnline {
+func SetState(pod *corev1.Pod, state autoscalingv1alpha1.PodState) {
+	if state == autoscalingv1alpha1.PodStateOnline {
 		delete(pod.Labels, LabelState)
 		return
 	}
@@ -74,8 +74,8 @@ func StateChanged(old, new *corev1.Pod) bool {
 
 // FilterAndClassifyByRunningState filter and classify given pods by their running states.
 // It returns the classified result and the total number of running pods.
-func FilterAndClassifyByRunningState(pods []corev1.Pod) (result map[v1alpha1.PodState][]*corev1.Pod, total int) {
-	result = make(map[v1alpha1.PodState][]*corev1.Pod)
+func FilterAndClassifyByRunningState(pods []corev1.Pod) (result map[autoscalingv1alpha1.PodState][]*corev1.Pod, total int) {
+	result = make(map[autoscalingv1alpha1.PodState][]*corev1.Pod)
 	for _, state := range runningStates {
 		result[state] = make([]*corev1.Pod, 0)
 	}
@@ -106,28 +106,28 @@ func newStateInfo() *stateInfo {
 
 // StateManager provides a method to calculate pod state change.
 type StateManager struct {
-	rp         *v1alpha1.ReplicaProfile
+	rp         *autoscalingv1alpha1.ReplicaProfile
 	sorter     sorter.Interface
-	statesInfo map[v1alpha1.PodState]*stateInfo
+	statesInfo map[autoscalingv1alpha1.PodState]*stateInfo
 	podNameMap map[string]*corev1.Pod
 }
 
 // NewStateManager build a state manager to calculate pod state change based on given spec and status.
-func NewStateManager(rp *v1alpha1.ReplicaProfile, sorter sorter.Interface, currentRunningPods map[v1alpha1.PodState][]*corev1.Pod) *StateManager {
+func NewStateManager(rp *autoscalingv1alpha1.ReplicaProfile, sorter sorter.Interface, currentRunningPods map[autoscalingv1alpha1.PodState][]*corev1.Pod) *StateManager {
 	sm := &StateManager{
 		rp:         rp,
 		sorter:     sorter,
-		statesInfo: make(map[v1alpha1.PodState]*stateInfo),
+		statesInfo: make(map[autoscalingv1alpha1.PodState]*stateInfo),
 		podNameMap: make(map[string]*corev1.Pod),
 	}
 	for _, state := range defaultStatesOrdered {
 		info := newStateInfo()
 		switch state {
-		case v1alpha1.PodStateOnline:
+		case autoscalingv1alpha1.PodStateOnline:
 			info.DesiredReplicas = int(rp.Spec.OnlineReplicas)
-		case v1alpha1.PodStateCutoff:
+		case autoscalingv1alpha1.PodStateCutoff:
 			info.DesiredReplicas = int(rp.Spec.CutoffReplicas)
-		case v1alpha1.PodStateStandby:
+		case autoscalingv1alpha1.PodStateStandby:
 			info.DesiredReplicas = int(rp.Spec.StandbyReplicas)
 		}
 		for _, pod := range currentRunningPods[state] {
@@ -215,13 +215,13 @@ func (sm *StateManager) CalculateStateChange(ctx context.Context) (*StateChange,
 	for state, info := range sm.statesInfo {
 		candidatePods := sm.makePodListByNames(info.CandidatePodNames)
 		switch state {
-		case v1alpha1.PodStateOnline:
+		case autoscalingv1alpha1.PodStateOnline:
 			result.Online = candidatePods
-		case v1alpha1.PodStateCutoff:
+		case autoscalingv1alpha1.PodStateCutoff:
 			result.Cutoff = candidatePods
-		case v1alpha1.PodStateStandby:
+		case autoscalingv1alpha1.PodStateStandby:
 			result.Standby = candidatePods
-		case v1alpha1.PodStateDeleted:
+		case autoscalingv1alpha1.PodStateDeleted:
 			result.Delete = candidatePods
 		}
 	}

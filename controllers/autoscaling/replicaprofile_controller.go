@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package controllers
+package autoscaling
 
 import (
 	"context"
@@ -41,7 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
+	"github.com/traas-stack/kapacity/controllers"
 	"github.com/traas-stack/kapacity/pkg/pod"
 	podsorter "github.com/traas-stack/kapacity/pkg/pod/sorter"
 	podtraffic "github.com/traas-stack/kapacity/pkg/pod/traffic"
@@ -82,7 +83,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	l.V(2).Info("start to reconcile")
 
-	rp := &v1alpha1.ReplicaProfile{}
+	rp := &autoscalingv1alpha1.ReplicaProfile{}
 	if err := r.Get(ctx, req.NamespacedName, rp); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -92,7 +93,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if !rp.DeletionTimestamp.IsZero() {
-		if controllerutil.ContainsFinalizer(rp, finalizer) {
+		if controllerutil.ContainsFinalizer(rp, controllers.Finalizer) {
 			// cleanup the cache
 			r.podSelectorCache.Delete(req.NamespacedName)
 
@@ -112,9 +113,9 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	rpStatusOriginal := rp.Status.DeepCopy()
 
 	if rp.Spec.Paused {
-		setReplicaProfileCondition(rp, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+		setReplicaProfileCondition(rp, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 			"ReplicaProfilePaused", "the replica profile is paused")
-		setReplicaProfileCondition(rp, v1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
+		setReplicaProfileCondition(rp, autoscalingv1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
 			"ReplicaProfilePaused", "the replica profile is paused")
 		if err := r.updateStatusIfNeeded(ctx, rp, rpStatusOriginal); err != nil {
 			l.Error(err, "failed to update status")
@@ -127,14 +128,14 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	scale, targetGR, err := r.GetScale(ctx, rp.Namespace, rp.Spec.ScaleTargetRef)
 	if err != nil {
 		l.Error(err, "failed to get the target's current scale")
-		r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
+		r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
 			"FailedGetScale", fmt.Sprintf("failed to get the target's current scale: %v", err))
 		return ctrl.Result{}, err
 	}
 	selector, err := util.ParseScaleSelector(scale.Status.Selector)
 	if err != nil {
 		l.Error(err, "failed to parse label selector of scale", "selector", scale.Status.Selector)
-		r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
+		r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
 			"InvalidSelector", fmt.Sprintf("failed to parse label selector %q of scale: %v", scale.Status.Selector, err))
 		return ctrl.Result{}, err
 	}
@@ -146,25 +147,25 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	podList := &corev1.PodList{}
 	if err := r.List(ctx, podList, client.InNamespace(rp.Namespace), client.MatchingLabelsSelector{Selector: selector}); err != nil {
 		l.Error(err, "failed to list the target's Pods")
-		r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
+		r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
 			"FailedListPods", fmt.Sprintf("failed to list the target's Pods: %v", err))
 		return ctrl.Result{}, err
 	}
 	currentRunningPods, currentRunningPodCount := pod.FilterAndClassifyByRunningState(podList.Items)
 
 	// Reflect status & check if ensured
-	rp.Status.OnlineReplicas = int32(len(currentRunningPods[v1alpha1.PodStateOnline]))
-	rp.Status.CutoffReplicas = int32(len(currentRunningPods[v1alpha1.PodStateCutoff]))
-	rp.Status.StandbyReplicas = int32(len(currentRunningPods[v1alpha1.PodStateStandby]))
+	rp.Status.OnlineReplicas = int32(len(currentRunningPods[autoscalingv1alpha1.PodStateOnline]))
+	rp.Status.CutoffReplicas = int32(len(currentRunningPods[autoscalingv1alpha1.PodStateCutoff]))
+	rp.Status.StandbyReplicas = int32(len(currentRunningPods[autoscalingv1alpha1.PodStateStandby]))
 
 	ensured := rp.Status.OnlineReplicas == rp.Spec.OnlineReplicas &&
 		rp.Status.CutoffReplicas == rp.Spec.CutoffReplicas &&
 		rp.Status.StandbyReplicas == rp.Spec.StandbyReplicas
 	if ensured {
-		setReplicaProfileCondition(rp, v1alpha1.ReplicaProfileEnsured, metav1.ConditionTrue,
+		setReplicaProfileCondition(rp, autoscalingv1alpha1.ReplicaProfileEnsured, metav1.ConditionTrue,
 			"ReplicaProfileEnsured", "current replica profile is ensured")
 	} else {
-		setReplicaProfileCondition(rp, v1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
+		setReplicaProfileCondition(rp, autoscalingv1alpha1.ReplicaProfileEnsured, metav1.ConditionFalse,
 			"ReplicaNumberNotSatisfied", "the number of replicas of some states do not meet the expectation")
 	}
 
@@ -183,23 +184,23 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		w, err := r.getWorkload(rp)
 		if err != nil {
 			l.Error(err, "failed to get target workload")
-			r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+			r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 				"FailedGetWorkload", fmt.Sprintf("failed to get the target workload: %v", err))
 			return ctrl.Result{}, err
 		}
 
 		var podSorter podsorter.Interface = w
-		if rp.Spec.Behavior.PodSorter.Type != v1alpha1.WorkloadDefaultPodSorterType {
+		if rp.Spec.Behavior.PodSorter.Type != autoscalingv1alpha1.WorkloadDefaultPodSorterType {
 			if !w.CanSelectPodsToScaleDown(ctx) {
 				l.V(1).Info("the target workload does not support non default pod sorter")
-				r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+				r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 					"PodSorterNotSupportedByWorkload", "the target workload does not support non default pod sorter")
 				return ctrl.Result{}, nil
 			}
 			podSorter, err = r.getPodSorter(rp)
 			if err != nil {
 				l.Error(err, "failed to get pod sorter")
-				r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+				r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 					"FailedGetPodSorter", fmt.Sprintf("failed to get pod sorter: %v", err))
 				return ctrl.Result{}, err
 			}
@@ -208,7 +209,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		podTrafficController, err := r.getPodTrafficController(rp)
 		if err != nil {
 			l.Error(err, "failed to get pod traffic controller")
-			r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+			r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 				"FailedGetPodTrafficController", fmt.Sprintf("failed to get pod traffic controller: %v", err))
 			return ctrl.Result{}, err
 		}
@@ -217,7 +218,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		change, err := sm.CalculateStateChange(ctx)
 		if err != nil {
 			l.Error(err, "failed to calculate state change")
-			r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+			r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 				"FailedCalculateStateChange", fmt.Sprintf("failed to calculate state change: %v", err))
 			return ctrl.Result{}, err
 		}
@@ -229,16 +230,16 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			if err := podTrafficController.On(ctx, change.Online); err != nil {
 				l.Error(err, "failed to online pods")
-				r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+				r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 					"FailedOnlinePods", fmt.Sprintf("failed to online pods: %v", err))
 				return ctrl.Result{}, err
 			}
 
 			// TODO(zqzten): use a concurrent way to set pod state
 			for _, p := range change.Online {
-				if err := r.setPodState(ctx, p, v1alpha1.PodStateOnline); err != nil {
+				if err := r.setPodState(ctx, p, autoscalingv1alpha1.PodStateOnline); err != nil {
 					l.Error(err, "failed to mark pod online", "pod", p.Name)
-					r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+					r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 						"FailedSetPodState", fmt.Sprintf("failed to mark pod %q online: %v", p.Name, err))
 					return ctrl.Result{}, err
 				}
@@ -252,16 +253,16 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			if err := podTrafficController.Off(ctx, change.Cutoff); err != nil {
 				l.Error(err, "failed to cutoff pods")
-				r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+				r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 					"FailedCutoffPods", fmt.Sprintf("failed to cutoff pods: %v", err))
 				return ctrl.Result{}, err
 			}
 
 			// TODO(zqzten): use a concurrent way to set pod state
 			for _, p := range change.Cutoff {
-				if err := r.setPodState(ctx, p, v1alpha1.PodStateCutoff); err != nil {
+				if err := r.setPodState(ctx, p, autoscalingv1alpha1.PodStateCutoff); err != nil {
 					l.Error(err, "failed to mark pod cutoff", "pod", p.Name)
-					r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+					r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 						"FailedSetPodState", fmt.Sprintf("failed to mark pod %q cutoff: %v", p.Name, err))
 					return ctrl.Result{}, err
 				}
@@ -277,9 +278,9 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			// TODO(zqzten): use a concurrent way to set pod state
 			for _, p := range change.Standby {
-				if err := r.setPodState(ctx, p, v1alpha1.PodStateStandby); err != nil {
+				if err := r.setPodState(ctx, p, autoscalingv1alpha1.PodStateStandby); err != nil {
 					l.Error(err, "failed to mark pod standby", "pod", p.Name)
-					r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+					r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 						"FailedSetPodState", fmt.Sprintf("failed to mark pod %q standby: %v", p.Name, err))
 					return ctrl.Result{}, err
 				}
@@ -293,7 +294,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			if err := w.SelectPodsToScaleDown(ctx, change.Delete); err != nil {
 				l.Error(err, "failed to select pods to delete")
-				r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+				r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 					"FailedSelectPodsToDelete", fmt.Sprintf("failed to select pods to delete: %v", err))
 				return ctrl.Result{}, err
 			}
@@ -313,17 +314,17 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		_, err = r.Scales(rp.Namespace).Update(ctx, targetGR, scale, metav1.UpdateOptions{})
 		if err != nil {
 			l.Error(err, "failed to update the target's scale")
-			r.errorOut(ctx, rp, rpStatusOriginal, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+			r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 				"FailedUpdateScale", fmt.Sprintf("failed to update the target's scale: %v", err))
 			return ctrl.Result{}, err
 		}
 	}
 
 	if canDoStateChange {
-		setReplicaProfileCondition(rp, v1alpha1.ReplicaProfileApplied, metav1.ConditionTrue,
+		setReplicaProfileCondition(rp, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionTrue,
 			"ReplicaProfileApplied", "all the operations for ensuring the replica profile are applied")
 	} else {
-		setReplicaProfileCondition(rp, v1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
+		setReplicaProfileCondition(rp, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
 			"StateChangeSkipped", "state change skipped as the number of current running pods observed mismatch the desired replicas of the target workload")
 	}
 	if err := r.updateStatusIfNeeded(ctx, rp, rpStatusOriginal); err != nil {
@@ -339,7 +340,7 @@ func (r *ReplicaProfileReconciler) SetupWithManager(ctx context.Context, mgr ctr
 	ctx = log.IntoContext(ctx, mgr.GetLogger().WithValues("controller", ReplicaProfileControllerName))
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(ReplicaProfileControllerName).
-		For(&v1alpha1.ReplicaProfile{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&autoscalingv1alpha1.ReplicaProfile{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&source.Kind{Type: &corev1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
@@ -380,7 +381,7 @@ func (p podStateChangePredicate) Update(e event.UpdateEvent) bool {
 func (r *ReplicaProfileReconciler) findReplicaProfileToEnqueueForPod(ctx context.Context, pod client.Object) *types.NamespacedName {
 	l := log.FromContext(ctx).WithValues("namespace", pod.GetNamespace())
 
-	rps := &v1alpha1.ReplicaProfileList{}
+	rps := &autoscalingv1alpha1.ReplicaProfileList{}
 	if err := r.List(ctx, rps, client.InNamespace(pod.GetNamespace())); err != nil {
 		l.Error(err, "failed to list ReplicaProfile")
 		return nil
@@ -409,7 +410,7 @@ func (r *ReplicaProfileReconciler) findReplicaProfileToEnqueueForPod(ctx context
 	return nil
 }
 
-func (r *ReplicaProfileReconciler) getWorkload(rp *v1alpha1.ReplicaProfile) (workload.Interface, error) {
+func (r *ReplicaProfileReconciler) getWorkload(rp *autoscalingv1alpha1.ReplicaProfile) (workload.Interface, error) {
 	gvk, err := util.ParseGVK(rp.Spec.ScaleTargetRef.APIVersion, rp.Spec.ScaleTargetRef.Kind)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse scale target's gvk: %v", err)
@@ -426,11 +427,11 @@ func (r *ReplicaProfileReconciler) getWorkload(rp *v1alpha1.ReplicaProfile) (wor
 	}
 }
 
-func (r *ReplicaProfileReconciler) getPodSorter(rp *v1alpha1.ReplicaProfile) (podsorter.Interface, error) {
+func (r *ReplicaProfileReconciler) getPodSorter(rp *autoscalingv1alpha1.ReplicaProfile) (podsorter.Interface, error) {
 	cfg := rp.Spec.Behavior.PodSorter
 	switch cfg.Type {
 	// TODO(zqzten): support more pod sorters
-	case v1alpha1.ExternalPodSorterType:
+	case autoscalingv1alpha1.ExternalPodSorterType:
 		// TODO(zqzten): support this
 		return nil, fmt.Errorf("todo")
 	default:
@@ -438,14 +439,14 @@ func (r *ReplicaProfileReconciler) getPodSorter(rp *v1alpha1.ReplicaProfile) (po
 	}
 }
 
-func (r *ReplicaProfileReconciler) getPodTrafficController(rp *v1alpha1.ReplicaProfile) (podtraffic.Controller, error) {
+func (r *ReplicaProfileReconciler) getPodTrafficController(rp *autoscalingv1alpha1.ReplicaProfile) (podtraffic.Controller, error) {
 	cfg := rp.Spec.Behavior.PodTrafficController
 	switch cfg.Type {
-	case v1alpha1.ReadinessGatePodTrafficControllerType:
+	case autoscalingv1alpha1.ReadinessGatePodTrafficControllerType:
 		return &podtraffic.ReadinessGate{
 			Client: r.Client,
 		}, nil
-	case v1alpha1.ExternalPodTrafficControllerType:
+	case autoscalingv1alpha1.ExternalPodTrafficControllerType:
 		// TODO(zqzten): support this
 		return nil, fmt.Errorf("todo")
 	default:
@@ -453,26 +454,26 @@ func (r *ReplicaProfileReconciler) getPodTrafficController(rp *v1alpha1.ReplicaP
 	}
 }
 
-func (r *ReplicaProfileReconciler) ensureFinalizer(ctx context.Context, obj *v1alpha1.ReplicaProfile) error {
-	if controllerutil.ContainsFinalizer(obj, finalizer) {
+func (r *ReplicaProfileReconciler) ensureFinalizer(ctx context.Context, obj *autoscalingv1alpha1.ReplicaProfile) error {
+	if controllerutil.ContainsFinalizer(obj, controllers.Finalizer) {
 		return nil
 	}
 	patch := client.MergeFrom(obj.DeepCopy())
-	controllerutil.AddFinalizer(obj, finalizer)
+	controllerutil.AddFinalizer(obj, controllers.Finalizer)
 	return r.Patch(ctx, obj, patch)
 }
 
-func (r *ReplicaProfileReconciler) removeFinalizer(ctx context.Context, obj *v1alpha1.ReplicaProfile) error {
-	if !controllerutil.ContainsFinalizer(obj, finalizer) {
+func (r *ReplicaProfileReconciler) removeFinalizer(ctx context.Context, obj *autoscalingv1alpha1.ReplicaProfile) error {
+	if !controllerutil.ContainsFinalizer(obj, controllers.Finalizer) {
 		return nil
 	}
 	patch := client.MergeFrom(obj.DeepCopy())
-	controllerutil.RemoveFinalizer(obj, finalizer)
+	controllerutil.RemoveFinalizer(obj, controllers.Finalizer)
 	return r.Patch(ctx, obj, patch)
 }
 
-func (r *ReplicaProfileReconciler) errorOut(ctx context.Context, rp *v1alpha1.ReplicaProfile, oldStatus *v1alpha1.ReplicaProfileStatus,
-	conditionType v1alpha1.ReplicaProfileConditionType, conditionStatus metav1.ConditionStatus, reason, message string) {
+func (r *ReplicaProfileReconciler) errorOut(ctx context.Context, rp *autoscalingv1alpha1.ReplicaProfile, oldStatus *autoscalingv1alpha1.ReplicaProfileStatus,
+	conditionType autoscalingv1alpha1.ReplicaProfileConditionType, conditionStatus metav1.ConditionStatus, reason, message string) {
 	r.Event(rp, corev1.EventTypeWarning, reason, message)
 	setReplicaProfileCondition(rp, conditionType, conditionStatus, reason, message)
 	if err := r.updateStatusIfNeeded(ctx, rp, oldStatus); err != nil {
@@ -480,7 +481,7 @@ func (r *ReplicaProfileReconciler) errorOut(ctx context.Context, rp *v1alpha1.Re
 	}
 }
 
-func (r *ReplicaProfileReconciler) updateStatusIfNeeded(ctx context.Context, rp *v1alpha1.ReplicaProfile, oldStatus *v1alpha1.ReplicaProfileStatus) error {
+func (r *ReplicaProfileReconciler) updateStatusIfNeeded(ctx context.Context, rp *autoscalingv1alpha1.ReplicaProfile, oldStatus *autoscalingv1alpha1.ReplicaProfileStatus) error {
 	if apiequality.Semantic.DeepEqual(oldStatus, &rp.Status) {
 		return nil
 	}
@@ -491,12 +492,12 @@ func (r *ReplicaProfileReconciler) updateStatusIfNeeded(ctx context.Context, rp 
 	return nil
 }
 
-func (r *ReplicaProfileReconciler) setPodState(ctx context.Context, p *corev1.Pod, state v1alpha1.PodState) error {
+func (r *ReplicaProfileReconciler) setPodState(ctx context.Context, p *corev1.Pod, state autoscalingv1alpha1.PodState) error {
 	patch := client.MergeFrom(p.DeepCopy())
 	pod.SetState(p, state)
 	return r.Patch(ctx, p, patch)
 }
 
-func setReplicaProfileCondition(rp *v1alpha1.ReplicaProfile, conditionType v1alpha1.ReplicaProfileConditionType, status metav1.ConditionStatus, reason, message string) {
+func setReplicaProfileCondition(rp *autoscalingv1alpha1.ReplicaProfile, conditionType autoscalingv1alpha1.ReplicaProfileConditionType, status metav1.ConditionStatus, reason, message string) {
 	rp.Status.Conditions = util.SetConditionInList(rp.Status.Conditions, string(conditionType), status, rp.Generation, reason, message)
 }
