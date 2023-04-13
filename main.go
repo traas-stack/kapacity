@@ -45,8 +45,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	autoscalingv1alpha1 "github.com/traas-stack/kapacity/api/v1alpha1"
-	"github.com/traas-stack/kapacity/controllers"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
+	"github.com/traas-stack/kapacity/controllers/autoscaling"
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/prometheus"
@@ -163,29 +163,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := (&controllers.ReplicaProfileReconciler{
+	if err := (&autoscaling.ReplicaProfileReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		EventRecorder: mgr.GetEventRecorderFor(controllers.ReplicaProfileControllerName),
+		EventRecorder: mgr.GetEventRecorderFor(autoscaling.ReplicaProfileControllerName),
 		Scaler:        scaler,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ReplicaProfile")
 		os.Exit(1)
 	}
-	if err := (&controllers.IntelligentHorizontalPodAutoscalerReconciler{
+	if err := (&autoscaling.IntelligentHorizontalPodAutoscalerReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
-		EventRecorder:     mgr.GetEventRecorderFor(controllers.IHPAControllerName),
+		EventRecorder:     mgr.GetEventRecorderFor(autoscaling.IHPAControllerName),
 		PortraitProviders: initHorizontalPortraitProviders(mgr.GetClient(), ihpaReconcilerEventTrigger),
 		EventTrigger:      ihpaReconcilerEventTrigger,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "IntelligentHorizontalPodAutoscaler")
 		os.Exit(1)
 	}
-	if err := (&controllers.HorizontalPortraitReconciler{
+	if err := (&autoscaling.HorizontalPortraitReconciler{
 		Client:             mgr.GetClient(),
 		Scheme:             mgr.GetScheme(),
-		EventRecorder:      mgr.GetEventRecorderFor(controllers.HorizontalPortraitControllerName),
+		EventRecorder:      mgr.GetEventRecorderFor(autoscaling.HorizontalPortraitControllerName),
 		PortraitGenerators: initHorizontalPortraitGenerators(mgr.GetClient(), metricProvider, scaler),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HorizontalPortrait")

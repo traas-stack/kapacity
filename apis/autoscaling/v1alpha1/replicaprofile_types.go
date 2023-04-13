@@ -17,7 +17,7 @@
 package v1alpha1
 
 import (
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,7 +38,7 @@ type ReplicaProfile struct {
 // ReplicaProfileSpec defines the desired state of ReplicaProfile.
 type ReplicaProfileSpec struct {
 	// ScaleTargetRef points to the target resource to scale.
-	ScaleTargetRef autoscalingv2.CrossVersionObjectReference `json:"scaleTargetRef"`
+	ScaleTargetRef k8sautoscalingv2.CrossVersionObjectReference `json:"scaleTargetRef"`
 
 	// OnlineReplicas is the desired number of online replicas.
 	// +optional

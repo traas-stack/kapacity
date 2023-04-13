@@ -19,7 +19,7 @@ package provider
 import (
 	"context"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 )
 
 // StaticHorizontal provides horizontal portraits with static replicas values.
@@ -30,23 +30,23 @@ func NewStaticHorizontal() Horizontal {
 	return &StaticHorizontal{}
 }
 
-func (*StaticHorizontal) GetPortraitIdentifier(*v1alpha1.IntelligentHorizontalPodAutoscaler, *v1alpha1.HorizontalPortraitProvider) string {
-	return string(v1alpha1.StaticHorizontalPortraitProviderType)
+func (*StaticHorizontal) GetPortraitIdentifier(*autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, *autoscalingv1alpha1.HorizontalPortraitProvider) string {
+	return string(autoscalingv1alpha1.StaticHorizontalPortraitProviderType)
 }
 
-func (*StaticHorizontal) UpdatePortraitSpec(context.Context, *v1alpha1.IntelligentHorizontalPodAutoscaler, *v1alpha1.HorizontalPortraitProvider) error {
+func (*StaticHorizontal) UpdatePortraitSpec(context.Context, *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, *autoscalingv1alpha1.HorizontalPortraitProvider) error {
 	// do nothing
 	return nil
 }
 
-func (h *StaticHorizontal) FetchPortraitValue(_ context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, cfg *v1alpha1.HorizontalPortraitProvider) (*v1alpha1.HorizontalPortraitValue, error) {
-	return &v1alpha1.HorizontalPortraitValue{
+func (h *StaticHorizontal) FetchPortraitValue(_ context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, cfg *autoscalingv1alpha1.HorizontalPortraitProvider) (*autoscalingv1alpha1.HorizontalPortraitValue, error) {
+	return &autoscalingv1alpha1.HorizontalPortraitValue{
 		Provider: h.GetPortraitIdentifier(ihpa, cfg),
 		Replicas: cfg.Static.Replicas,
 	}, nil
 }
 
-func (*StaticHorizontal) CleanupPortrait(context.Context, *v1alpha1.IntelligentHorizontalPodAutoscaler, string) error {
+func (*StaticHorizontal) CleanupPortrait(context.Context, *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, string) error {
 	// do nothing
 	return nil
 }

@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"encoding/json"
 
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,7 +40,7 @@ type HorizontalPortrait struct {
 // HorizontalPortraitSpec defines the desired state of HorizontalPortrait.
 type HorizontalPortraitSpec struct {
 	// ScaleTargetRef points to the target resource to scale.
-	ScaleTargetRef autoscalingv2.CrossVersionObjectReference `json:"scaleTargetRef"`
+	ScaleTargetRef k8sautoscalingv2.CrossVersionObjectReference `json:"scaleTargetRef"`
 
 	PortraitSpec `json:",inline"`
 }
@@ -85,7 +85,7 @@ type MetricSpec struct {
 	// +kubebuilder:validation:Enum===;>;<;>=;<=
 	Operator Operator `json:"operator,omitempty"`
 
-	autoscalingv2.MetricSpec `json:",inline"`
+	k8sautoscalingv2.MetricSpec `json:",inline"`
 }
 
 type Operator string

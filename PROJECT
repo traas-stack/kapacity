@@ -1,6 +1,7 @@
 domain: kapacity.traas.io
 layout:
 - go.kubebuilder.io/v3
+multigroup: true
 projectName: kapacity
 repo: github.com/traas-stack/kapacity
 resources:

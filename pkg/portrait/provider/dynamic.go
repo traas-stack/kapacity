@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/pkg/util"
 )
 
@@ -49,25 +49,25 @@ func NewDynamicHorizontal(client client.Client, eventTrigger chan event.GenericE
 	}
 }
 
-func (*DynamicHorizontal) GetPortraitIdentifier(_ *v1alpha1.IntelligentHorizontalPodAutoscaler, cfg *v1alpha1.HorizontalPortraitProvider) string {
-	return fmt.Sprintf("%s-%s", v1alpha1.DynamicHorizontalPortraitProviderType, cfg.Dynamic.PortraitType)
+func (*DynamicHorizontal) GetPortraitIdentifier(_ *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, cfg *autoscalingv1alpha1.HorizontalPortraitProvider) string {
+	return fmt.Sprintf("%s-%s", autoscalingv1alpha1.DynamicHorizontalPortraitProviderType, cfg.Dynamic.PortraitType)
 }
 
-func (h *DynamicHorizontal) UpdatePortraitSpec(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, cfg *v1alpha1.HorizontalPortraitProvider) error {
+func (h *DynamicHorizontal) UpdatePortraitSpec(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, cfg *autoscalingv1alpha1.HorizontalPortraitProvider) error {
 	hpNamespacedName := types.NamespacedName{
 		Namespace: ihpa.Namespace,
 		Name:      buildHorizontalPortraitName(ihpa.Name, cfg.Dynamic.PortraitType),
 	}
 
-	hpSpec := v1alpha1.HorizontalPortraitSpec{
+	hpSpec := autoscalingv1alpha1.HorizontalPortraitSpec{
 		ScaleTargetRef: ihpa.Spec.ScaleTargetRef,
 		PortraitSpec:   cfg.Dynamic.PortraitSpec,
 	}
 
-	hp := &v1alpha1.HorizontalPortrait{}
+	hp := &autoscalingv1alpha1.HorizontalPortrait{}
 	if err := h.client.Get(ctx, hpNamespacedName, hp); err != nil {
 		if apierrors.IsNotFound(err) {
-			hp = &v1alpha1.HorizontalPortrait{
+			hp = &autoscalingv1alpha1.HorizontalPortrait{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: hpNamespacedName.Namespace,
 					Name:      hpNamespacedName.Name,
@@ -101,8 +101,8 @@ func (h *DynamicHorizontal) UpdatePortraitSpec(ctx context.Context, ihpa *v1alph
 	return nil
 }
 
-func (h *DynamicHorizontal) FetchPortraitValue(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, cfg *v1alpha1.HorizontalPortraitProvider) (*v1alpha1.HorizontalPortraitValue, error) {
-	hp := &v1alpha1.HorizontalPortrait{}
+func (h *DynamicHorizontal) FetchPortraitValue(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, cfg *autoscalingv1alpha1.HorizontalPortraitProvider) (*autoscalingv1alpha1.HorizontalPortraitValue, error) {
+	hp := &autoscalingv1alpha1.HorizontalPortrait{}
 	hpNamespacedName := types.NamespacedName{
 		Namespace: ihpa.Namespace,
 		Name:      buildHorizontalPortraitName(ihpa.Name, cfg.Dynamic.PortraitType),
@@ -123,11 +123,11 @@ func (h *DynamicHorizontal) FetchPortraitValue(ctx context.Context, ihpa *v1alph
 	return v, nil
 }
 
-func (h *DynamicHorizontal) CleanupPortrait(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, identifier string) error {
-	hp := &v1alpha1.HorizontalPortrait{}
+func (h *DynamicHorizontal) CleanupPortrait(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, identifier string) error {
+	hp := &autoscalingv1alpha1.HorizontalPortrait{}
 	hpNamespacedName := types.NamespacedName{
 		Namespace: ihpa.Namespace,
-		Name:      buildHorizontalPortraitName(ihpa.Name, v1alpha1.PortraitType(strings.Split(identifier, "-")[1])),
+		Name:      buildHorizontalPortraitName(ihpa.Name, autoscalingv1alpha1.PortraitType(strings.Split(identifier, "-")[1])),
 	}
 
 	h.cronTaskTriggerManager.StopCronTaskTrigger(hpNamespacedName)
@@ -146,8 +146,8 @@ func (h *DynamicHorizontal) CleanupPortrait(ctx context.Context, ihpa *v1alpha1.
 	return nil
 }
 
-func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler,
-	provider string, hpNamespacedName types.NamespacedName, portraitData *v1alpha1.HorizontalPortraitData) (*v1alpha1.HorizontalPortraitValue, error) {
+func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler,
+	provider string, hpNamespacedName types.NamespacedName, portraitData *autoscalingv1alpha1.HorizontalPortraitData) (*autoscalingv1alpha1.HorizontalPortraitValue, error) {
 	now := time.Now()
 	expireTime := portraitData.ExpireTime.Time
 	// cleanup and return nothing if the portrait data is expired
@@ -162,9 +162,9 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *v1alph
 		needTimerTrigger = true
 	)
 	switch portraitData.Type {
-	case v1alpha1.StaticHorizontalPortraitDataType:
+	case autoscalingv1alpha1.StaticHorizontalPortraitDataType:
 		replicas = portraitData.Static.Replicas
-	case v1alpha1.CronHorizontalPortraitDataType:
+	case autoscalingv1alpha1.CronHorizontalPortraitDataType:
 		if err := h.cronTaskTriggerManager.StartCronTaskTrigger(hpNamespacedName, ihpa, portraitData.Cron.Crons); err != nil {
 			return nil, fmt.Errorf("failed to run cron task for portrait data: %v", err)
 		}
@@ -182,7 +182,7 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *v1alph
 				needTimerTrigger = false
 			}
 		}
-	case v1alpha1.TimeSeriesHorizontalPortraitDataType:
+	case autoscalingv1alpha1.TimeSeriesHorizontalPortraitDataType:
 		series := portraitData.TimeSeries.TimeSeries
 		now := now.Unix()
 		// find the latest point which shall take effect
@@ -211,7 +211,7 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *v1alph
 	}
 
 	if replicas > 0 {
-		return &v1alpha1.HorizontalPortraitValue{
+		return &autoscalingv1alpha1.HorizontalPortraitValue{
 			Provider:   provider,
 			Replicas:   replicas,
 			ExpireTime: metav1.NewTime(expireTime),
@@ -221,6 +221,6 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *v1alph
 	}
 }
 
-func buildHorizontalPortraitName(name string, portraitType v1alpha1.PortraitType) string {
+func buildHorizontalPortraitName(name string, portraitType autoscalingv1alpha1.PortraitType) string {
 	return strings.ToLower(fmt.Sprintf("%s-%s", name, portraitType))
 }

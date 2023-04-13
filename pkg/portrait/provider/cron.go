@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 )
 
 // CronHorizontal provides horizontal portraits with replicas values based on cron rules.
@@ -38,15 +38,15 @@ func NewCronHorizontal(eventTrigger chan event.GenericEvent) Horizontal {
 	}
 }
 
-func (*CronHorizontal) GetPortraitIdentifier(*v1alpha1.IntelligentHorizontalPodAutoscaler, *v1alpha1.HorizontalPortraitProvider) string {
-	return string(v1alpha1.CronHorizontalPortraitProviderType)
+func (*CronHorizontal) GetPortraitIdentifier(*autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, *autoscalingv1alpha1.HorizontalPortraitProvider) string {
+	return string(autoscalingv1alpha1.CronHorizontalPortraitProviderType)
 }
 
-func (h *CronHorizontal) UpdatePortraitSpec(_ context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, cfg *v1alpha1.HorizontalPortraitProvider) error {
+func (h *CronHorizontal) UpdatePortraitSpec(_ context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, cfg *autoscalingv1alpha1.HorizontalPortraitProvider) error {
 	return h.cronTaskTriggerManager.StartCronTaskTrigger(types.NamespacedName{Namespace: ihpa.Namespace, Name: ihpa.Name}, ihpa, cfg.Cron.Crons)
 }
 
-func (h *CronHorizontal) FetchPortraitValue(_ context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, cfg *v1alpha1.HorizontalPortraitProvider) (*v1alpha1.HorizontalPortraitValue, error) {
+func (h *CronHorizontal) FetchPortraitValue(_ context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, cfg *autoscalingv1alpha1.HorizontalPortraitProvider) (*autoscalingv1alpha1.HorizontalPortraitValue, error) {
 	rc, expireTime, err := getActiveReplicaCron(cfg.Cron.Crons)
 	if err != nil {
 		return nil, err
@@ -56,14 +56,14 @@ func (h *CronHorizontal) FetchPortraitValue(_ context.Context, ihpa *v1alpha1.In
 		return nil, nil
 	}
 
-	return &v1alpha1.HorizontalPortraitValue{
+	return &autoscalingv1alpha1.HorizontalPortraitValue{
 		Provider:   h.GetPortraitIdentifier(ihpa, cfg),
 		Replicas:   rc.Replicas,
 		ExpireTime: metav1.NewTime(expireTime),
 	}, nil
 }
 
-func (h *CronHorizontal) CleanupPortrait(_ context.Context, ihpa *v1alpha1.IntelligentHorizontalPodAutoscaler, _ string) error {
+func (h *CronHorizontal) CleanupPortrait(_ context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, _ string) error {
 	h.cronTaskTriggerManager.StopCronTaskTrigger(types.NamespacedName{Namespace: ihpa.Namespace, Name: ihpa.Name})
 	return nil
 }

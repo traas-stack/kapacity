@@ -35,20 +35,20 @@ So, let's write our example test for the CronJob controller (`cronjob_controller
 /*
 As usual, we start with the necessary imports. We also define some utility variables.
 */
-package controllers
+package autoscaling
 
 import (
 	"context"
 	"time"
 
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
-
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 )
 
 const (
@@ -81,7 +81,7 @@ var _ = Describe("CronJob controller", func() {
 			Expect(k8sClient.Create(ctx, ihpa)).Should(Succeed())
 
 			ihpaKey := types.NamespacedName{Name: testName, Namespace: testNamespace}
-			ihpaCr := &v1alpha1.IntelligentHorizontalPodAutoscaler{}
+			ihpaCr := &autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler{}
 
 			// We'll need to retry getting this newly created CronJob, given that creation may not immediately happen.
 			Eventually(func() bool {
@@ -100,14 +100,14 @@ var _ = Describe("CronJob controller", func() {
 
 })
 
-func CreateIHPAInstance() *v1alpha1.IntelligentHorizontalPodAutoscaler {
-	return &v1alpha1.IntelligentHorizontalPodAutoscaler{
+func CreateIHPAInstance() *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler {
+	return &autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      testName,
 		},
-		Spec: v1alpha1.IntelligentHorizontalPodAutoscalerSpec{
-			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+		Spec: autoscalingv1alpha1.IntelligentHorizontalPodAutoscalerSpec{
+			ScaleTargetRef: k8sautoscalingv2.CrossVersionObjectReference{
 				Kind:       "StatefulSet",
 				Name:       testName,
 				APIVersion: "apps/v1",
@@ -115,13 +115,13 @@ func CreateIHPAInstance() *v1alpha1.IntelligentHorizontalPodAutoscaler {
 			MinReplicas: 2,
 			MaxReplicas: 100,
 			Paused:      false,
-			ScaleMode:   v1alpha1.ScaleModeAuto,
-			PortraitProviders: []v1alpha1.HorizontalPortraitProvider{
+			ScaleMode:   autoscalingv1alpha1.ScaleModeAuto,
+			PortraitProviders: []autoscalingv1alpha1.HorizontalPortraitProvider{
 				{
-					Type:     v1alpha1.CronHorizontalPortraitProviderType,
+					Type:     autoscalingv1alpha1.CronHorizontalPortraitProviderType,
 					Priority: 2,
-					Cron: &v1alpha1.CronHorizontalPortraitProvider{
-						Crons: []v1alpha1.ReplicaCron{
+					Cron: &autoscalingv1alpha1.CronHorizontalPortraitProvider{
+						Crons: []autoscalingv1alpha1.ReplicaCron{
 							{
 								Name:     "cron1",
 								TimeZone: "UTC",
@@ -133,35 +133,35 @@ func CreateIHPAInstance() *v1alpha1.IntelligentHorizontalPodAutoscaler {
 					},
 				},
 				{
-					Type:     v1alpha1.StaticHorizontalPortraitProviderType,
+					Type:     autoscalingv1alpha1.StaticHorizontalPortraitProviderType,
 					Priority: 1,
-					Static: &v1alpha1.StaticHorizontalPortraitProvider{
+					Static: &autoscalingv1alpha1.StaticHorizontalPortraitProvider{
 						Replicas: 4,
 					},
 				},
 			},
-			Behavior: v1alpha1.IntelligentHorizontalPodAutoscalerBehavior{
-				ScaleDown: v1alpha1.ScalingBehavior{
-					GrayStrategy: &v1alpha1.GrayStrategy{
-						GrayState:             v1alpha1.PodStateCutoff,
+			Behavior: autoscalingv1alpha1.IntelligentHorizontalPodAutoscalerBehavior{
+				ScaleDown: autoscalingv1alpha1.ScalingBehavior{
+					GrayStrategy: &autoscalingv1alpha1.GrayStrategy{
+						GrayState:             autoscalingv1alpha1.PodStateCutoff,
 						ChangePercent:         20,
 						ChangeIntervalSeconds: 1800,
 						ObservationSeconds:    3600,
 					},
 				},
-				ReplicaProfile: &v1alpha1.ReplicaProfileBehavior{
-					PodSorter: v1alpha1.PodSorter{
-						Type: v1alpha1.WorkloadDefaultPodSorterType,
+				ReplicaProfile: &autoscalingv1alpha1.ReplicaProfileBehavior{
+					PodSorter: autoscalingv1alpha1.PodSorter{
+						Type: autoscalingv1alpha1.WorkloadDefaultPodSorterType,
 					},
-					PodTrafficController: v1alpha1.PodTrafficController{
-						Type: v1alpha1.ReadinessGatePodTrafficControllerType,
+					PodTrafficController: autoscalingv1alpha1.PodTrafficController{
+						Type: autoscalingv1alpha1.ReadinessGatePodTrafficControllerType,
 					},
 				},
 			},
 		},
-		Status: v1alpha1.IntelligentHorizontalPodAutoscalerStatus{
-			PreviousPortraitValue: &v1alpha1.HorizontalPortraitValue{
-				Provider:   string(v1alpha1.StaticHorizontalPortraitProviderType),
+		Status: autoscalingv1alpha1.IntelligentHorizontalPodAutoscalerStatus{
+			PreviousPortraitValue: &autoscalingv1alpha1.HorizontalPortraitValue{
+				Provider:   string(autoscalingv1alpha1.StaticHorizontalPortraitProviderType),
 				Replicas:   10,
 				ExpireTime: metav1.Now(),
 			},

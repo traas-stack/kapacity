@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package controllers
+package autoscaling
 
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/traas-stack/kapacity/api/v1alpha1"
+	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	portraitgenerator "github.com/traas-stack/kapacity/pkg/portrait/generator"
 	"github.com/traas-stack/kapacity/pkg/util"
 )
@@ -48,7 +48,7 @@ type HorizontalPortraitReconciler struct {
 	Scheme *runtime.Scheme
 	record.EventRecorder
 
-	PortraitGenerators map[v1alpha1.PortraitType]portraitgenerator.Interface
+	PortraitGenerators map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface
 }
 
 //+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=horizontalportraits,verbs=get;list;watch;create;update;patch;delete
@@ -68,7 +68,7 @@ func (r *HorizontalPortraitReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	l.V(2).Info("start to reconcile")
 
-	hp := &v1alpha1.HorizontalPortrait{}
+	hp := &autoscalingv1alpha1.HorizontalPortrait{}
 	if err := r.Get(ctx, req.NamespacedName, hp); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -89,13 +89,13 @@ func (r *HorizontalPortraitReconciler) Reconcile(ctx context.Context, req ctrl.R
 	data, requeueAfter, err := portraitGenerator.GenerateHorizontal(ctx, hp.Namespace, hp.Spec.ScaleTargetRef, hp.Spec.Metrics, hp.Spec.Algorithm)
 	if err != nil {
 		l.Error(err, "failed to generate portrait")
-		r.errorOut(ctx, hp, hpStatusOriginal, v1alpha1.PortraitGenerated, metav1.ConditionFalse,
+		r.errorOut(ctx, hp, hpStatusOriginal, autoscalingv1alpha1.PortraitGenerated, metav1.ConditionFalse,
 			"FailedGeneratePortrait", fmt.Sprintf("failed to generate portrait: %v", err))
 		return ctrl.Result{}, err
 	}
 
 	hp.Status.PortraitData = data
-	setHorizontalPortraitCondition(hp, v1alpha1.PortraitGenerated, metav1.ConditionTrue,
+	setHorizontalPortraitCondition(hp, autoscalingv1alpha1.PortraitGenerated, metav1.ConditionTrue,
 		"SucceededGeneratePortrait", "portrait has been successfully generated")
 	if err := r.updateStatusIfNeeded(ctx, hp, hpStatusOriginal); err != nil {
 		l.Error(err, "failed to update status")
@@ -109,18 +109,18 @@ func (r *HorizontalPortraitReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *HorizontalPortraitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(HorizontalPortraitControllerName).
-		For(&v1alpha1.HorizontalPortrait{},
+		For(&autoscalingv1alpha1.HorizontalPortrait{},
 			builder.WithPredicates(
 				predicate.GenerationChangedPredicate{},
 				predicate.NewPredicateFuncs(func(object client.Object) bool {
-					hp, ok := object.(*v1alpha1.HorizontalPortrait)
+					hp, ok := object.(*autoscalingv1alpha1.HorizontalPortrait)
 					if !ok {
 						return false
 					}
 					switch hp.Spec.PortraitType {
-					case v1alpha1.ReactivePortraitType:
-					case v1alpha1.PredictivePortraitType:
-					case v1alpha1.BurstPortraitType:
+					case autoscalingv1alpha1.ReactivePortraitType:
+					case autoscalingv1alpha1.PredictivePortraitType:
+					case autoscalingv1alpha1.BurstPortraitType:
 					default:
 						return false
 					}
@@ -133,8 +133,8 @@ func (r *HorizontalPortraitReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Complete(r)
 }
 
-func (r *HorizontalPortraitReconciler) errorOut(ctx context.Context, hp *v1alpha1.HorizontalPortrait, oldStatus *v1alpha1.HorizontalPortraitStatus,
-	conditionType v1alpha1.HorizontalPortraitConditionType, conditionStatus metav1.ConditionStatus, reason, message string) {
+func (r *HorizontalPortraitReconciler) errorOut(ctx context.Context, hp *autoscalingv1alpha1.HorizontalPortrait, oldStatus *autoscalingv1alpha1.HorizontalPortraitStatus,
+	conditionType autoscalingv1alpha1.HorizontalPortraitConditionType, conditionStatus metav1.ConditionStatus, reason, message string) {
 	r.Event(hp, corev1.EventTypeWarning, reason, message)
 	setHorizontalPortraitCondition(hp, conditionType, conditionStatus, reason, message)
 	if err := r.updateStatusIfNeeded(ctx, hp, oldStatus); err != nil {
@@ -142,7 +142,7 @@ func (r *HorizontalPortraitReconciler) errorOut(ctx context.Context, hp *v1alpha
 	}
 }
 
-func (r *HorizontalPortraitReconciler) updateStatusIfNeeded(ctx context.Context, hp *v1alpha1.HorizontalPortrait, oldStatus *v1alpha1.HorizontalPortraitStatus) error {
+func (r *HorizontalPortraitReconciler) updateStatusIfNeeded(ctx context.Context, hp *autoscalingv1alpha1.HorizontalPortrait, oldStatus *autoscalingv1alpha1.HorizontalPortraitStatus) error {
 	if apiequality.Semantic.DeepEqual(oldStatus, &hp.Status) {
 		return nil
 	}
@@ -153,6 +153,6 @@ func (r *HorizontalPortraitReconciler) updateStatusIfNeeded(ctx context.Context,
 	return nil
 }
 
-func setHorizontalPortraitCondition(hp *v1alpha1.HorizontalPortrait, conditionType v1alpha1.HorizontalPortraitConditionType, status metav1.ConditionStatus, reason, message string) {
+func setHorizontalPortraitCondition(hp *autoscalingv1alpha1.HorizontalPortrait, conditionType autoscalingv1alpha1.HorizontalPortraitConditionType, status metav1.ConditionStatus, reason, message string) {
 	hp.Status.Conditions = util.SetConditionInList(hp.Status.Conditions, string(conditionType), status, hp.Generation, reason, message)
 }
