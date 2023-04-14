@@ -37,6 +37,7 @@ import (
 	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlconfigv1alpha1 "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -79,6 +80,7 @@ func main() {
 		metricsAddr          string
 		probeAddr            string
 		enableLeaderElection bool
+		reconcileConcurrency int
 
 		metricProviderType string
 		promAddress        string
@@ -92,6 +94,7 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
 	flag.StringVar(&metricProviderType, "metric-provider", "prometheus", "todo")
 	flag.StringVar(&promAddress, "prometheus-address", "", "todo")
 	opts := zap.Options{
@@ -137,6 +140,13 @@ func main() {
 		// speeds up voluntary leader transitions as the new leader don't have to wait
 		// LeaseDuration time first.
 		LeaderElectionReleaseOnCancel: true,
+		Controller: ctrlconfigv1alpha1.ControllerConfigurationSpec{
+			GroupKindConcurrency: map[string]int{
+				"ReplicaProfile.autoscaling.kapacity.traas.io":                     reconcileConcurrency,
+				"IntelligentHorizontalPodAutoscaler.autoscaling.kapacity.traas.io": reconcileConcurrency,
+				"HorizontalPortrait.autoscaling.kapacity.traas.io":                 reconcileConcurrency,
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
