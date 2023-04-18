@@ -19,7 +19,6 @@ package autoscaling
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -66,11 +65,6 @@ type IntelligentHorizontalPodAutoscalerReconciler struct {
 	// This is used for portrait id diff to find the removed portraits.
 	// The portrait identifiers stored are strings with format "providerType/portraitIdentifier".
 	portraitIdentifiersMap sync.Map // map[types.NamespacedName]sets.String
-}
-
-type horizontalPortraitValueWithPriority struct {
-	*autoscalingv1alpha1.HorizontalPortraitValue
-	Priority int32
 }
 
 type replicaData struct {
@@ -362,16 +356,21 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) updateAndFetchPortraitVal
 	}
 	r.portraitIdentifiersMap.Store(n, currentPortraitIdentifiers)
 
+	var (
+		candidatePortraitValue    *autoscalingv1alpha1.HorizontalPortraitValue
+		candidatePortraitPriority int32
+	)
 	now := metav1.Now()
-	validPortraitValues := make([]horizontalPortraitValueWithPriority, 0)
 	for _, providerCfg := range ihpa.Spec.PortraitProviders {
 		provider, ok := r.PortraitProviders[providerCfg.Type]
 		if !ok {
 			return nil, fmt.Errorf("unknown portrait provider type %q", providerCfg.Type)
 		}
+
 		if err := provider.UpdatePortraitSpec(ctx, ihpa, &providerCfg); err != nil {
 			return nil, fmt.Errorf("failed to update portrait spec: %v", err)
 		}
+
 		value, err := provider.FetchPortraitValue(ctx, ihpa, &providerCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch portrait value: %v", err)
@@ -379,22 +378,23 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) updateAndFetchPortraitVal
 		if value == nil {
 			continue
 		}
-		if value.ExpireTime.IsZero() || now.Before(&value.ExpireTime) {
-			validPortraitValues = append(validPortraitValues, horizontalPortraitValueWithPriority{
-				HorizontalPortraitValue: value,
-				Priority:                providerCfg.Priority,
-			})
+
+		priority := providerCfg.Priority
+
+		// The provided portrait value would be chosen as candidate only if (1 && (2 || 3 || 4)):
+		// 1. It is not expired
+		// 2. It is the first candidate
+		// 3. Its priority is higher than the previous candidate
+		// 4. Its priority is the same as the previous candidate, but it desires more replicas than the previous one
+		if (value.ExpireTime.IsZero() || now.Before(&value.ExpireTime)) &&
+			(candidatePortraitValue == nil ||
+				(priority > candidatePortraitPriority ||
+					(priority == candidatePortraitPriority && value.Replicas > candidatePortraitValue.Replicas))) {
+			candidatePortraitValue = value
+			candidatePortraitPriority = priority
 		}
 	}
-
-	if len(validPortraitValues) == 0 {
-		return nil, nil
-	}
-
-	sort.Slice(validPortraitValues, func(i, j int) bool {
-		return validPortraitValues[i].Priority > validPortraitValues[j].Priority
-	})
-	return validPortraitValues[0].HorizontalPortraitValue, nil
+	return candidatePortraitValue, nil
 }
 
 func (r *IntelligentHorizontalPodAutoscalerReconciler) cleanupRemovedPortraits(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler, previousPortraitIdentifiers, currentPortraitIdentifiers sets.String) error {
