@@ -183,7 +183,12 @@ func (m *timerTriggerManager) StartTimerTrigger(ctx context.Context, timerKey ty
 	})
 
 	go func() {
-		timer := time.NewTimer(time.Until(t))
+		d := time.Until(t)
+		if d <= 0 {
+			m.eventTrigger <- event.GenericEvent{Object: ihpa}
+			return
+		}
+		timer := time.NewTimer(d)
 		select {
 		case <-timer.C:
 			m.eventTrigger <- event.GenericEvent{Object: ihpa}
