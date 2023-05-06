@@ -160,6 +160,7 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *autosc
 	var (
 		replicas         int32
 		needTimerTrigger = true
+		timerTriggerTime time.Time
 	)
 	switch portraitData.Type {
 	case autoscalingv1alpha1.StaticHorizontalPortraitDataType:
@@ -186,12 +187,14 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *autosc
 		series := portraitData.TimeSeries.TimeSeries
 		now := now.Unix()
 		// find the latest point which shall take effect
+		found := false
 		for i := len(series) - 1; i >= 0; i-- {
 			point := series[i]
 			if point.Timestamp > now {
 				continue
 			}
 
+			found = true
 			replicas = point.Replicas
 			// adjust expire time to the time of next point (if there is)
 			if i < len(series)-1 {
@@ -202,12 +205,19 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *autosc
 			}
 			break
 		}
+		if !found {
+			// no point shall take effect now, trigger when the first (earliest) point take into effect
+			timerTriggerTime = time.Unix(series[0].Timestamp, 0)
+		}
 	default:
 		return nil, fmt.Errorf("unknown horizontal portrait data type %q", portraitData.Type)
 	}
 
-	if !expireTime.IsZero() && needTimerTrigger {
-		h.timerTriggerManager.StartTimerTrigger(ctx, hpNamespacedName, ihpa, expireTime)
+	if !expireTime.IsZero() && (timerTriggerTime.IsZero() || expireTime.Before(timerTriggerTime)) {
+		timerTriggerTime = expireTime
+	}
+	if needTimerTrigger && !timerTriggerTime.IsZero() {
+		h.timerTriggerManager.StartTimerTrigger(ctx, hpNamespacedName, ihpa, timerTriggerTime)
 	}
 
 	if replicas > 0 {
