@@ -222,13 +222,13 @@ spec:
                 description: MaxReplicas is the upper limit for the number of replicas
                   to which the autoscaler can scale up. It cannot be less than MinReplicas.
                 format: int32
-                minimum: 1
+                minimum: 0
                 type: integer
               minReplicas:
                 description: MinReplicas is the lower limit for the number of replicas
                   to which the autoscaler can scale down.
                 format: int32
-                minimum: 1
+                minimum: 0
                 type: integer
               paused:
                 description: Paused means if the autoscaler is paused.
@@ -268,7 +268,7 @@ spec:
                                 description: Replicas is the desired number of online
                                   replicas within this cron rule.
                                 format: int32
-                                minimum: 1
+                                minimum: 0
                                 type: integer
                               start:
                                 description: Start is the cron of time from which
@@ -888,7 +888,7 @@ spec:
                         replicas:
                           description: Replicas is the desired number of online replicas.
                           format: int32
-                          minimum: 1
+                          minimum: 0
                           type: integer
                       required:
                       - replicas
@@ -1601,7 +1601,7 @@ spec:
                   replicas:
                     description: Replicas is the desired number of online replicas.
                     format: int32
-                    minimum: 1
+                    minimum: 0
                     type: integer
                 required:
                 - provider
@@ -1641,7 +1641,7 @@ spec:
                   replicas:
                     description: Replicas is the desired number of online replicas.
                     format: int32
-                    minimum: 1
+                    minimum: 0
                     type: integer
                 required:
                 - provider

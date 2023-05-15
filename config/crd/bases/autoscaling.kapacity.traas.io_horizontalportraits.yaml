@@ -693,7 +693,7 @@ spec:
                               description: Replicas is the desired number of online
                                 replicas within this cron rule.
                               format: int32
-                              minimum: 1
+                              minimum: 0
                               type: integer
                             start:
                               description: Start is the cron of time from which the
@@ -727,7 +727,7 @@ spec:
                       replicas:
                         description: Replicas is the desired number of online replicas.
                         format: int32
-                        minimum: 1
+                        minimum: 0
                         type: integer
                     required:
                     - replicas
@@ -749,7 +749,7 @@ spec:
                               description: Replicas is the desired number of online
                                 replicas from this point.
                               format: int32
-                              minimum: 1
+                              minimum: 0
                               type: integer
                             timestamp:
                               description: Timestamp is the unix time stamp of this
