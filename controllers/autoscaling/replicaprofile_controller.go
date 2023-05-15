@@ -177,10 +177,13 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	// Do state change only if the number of current running pods observed match the desired replicas of the target workload,
+	// We need state change only if we want some pods to be not online, or there exists pods whose state is not online.
+	needStateChange := rp.Spec.CutoffReplicas > 0 || rp.Spec.StandbyReplicas > 0 ||
+		rp.Status.CutoffReplicas > 0 || rp.Status.StandbyReplicas > 0
+	// Do state change only if the number of current running pods match the desired replicas of the target workload,
 	// this can prevent unexpected behaviors when the target workload is updating/self-healing.
 	canDoStateChange := currentRunningPodCount == int(scale.Spec.Replicas)
-	if canDoStateChange {
+	if needStateChange && canDoStateChange {
 		w, err := r.getWorkload(rp)
 		if err != nil {
 			l.Error(err, "failed to get target workload")
@@ -320,7 +323,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if canDoStateChange {
+	if !needStateChange || canDoStateChange {
 		setReplicaProfileCondition(rp, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionTrue,
 			"ReplicaProfileApplied", "all the operations for ensuring the replica profile are applied")
 	} else {
