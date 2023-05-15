@@ -46,12 +46,12 @@ type IntelligentHorizontalPodAutoscalerSpec struct {
 	Paused bool `json:"paused,omitempty"`
 
 	// MinReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	MinReplicas int32 `json:"minReplicas"`
 
 	// MaxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.
 	// It cannot be less than MinReplicas.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	MaxReplicas int32 `json:"maxReplicas"`
 
 	// ScaleMode is the scaling mode of the autoscaler.
@@ -131,7 +131,7 @@ const (
 // which always provides a static replicas value.
 type StaticHorizontalPortraitProvider struct {
 	// Replicas is the desired number of online replicas.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 }
 
@@ -168,7 +168,7 @@ type ReplicaCron struct {
 	End string `json:"end"`
 
 	// Replicas is the desired number of online replicas within this cron rule.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 }
 
@@ -336,7 +336,7 @@ type HorizontalPortraitValue struct {
 	Provider string `json:"provider"`
 
 	// Replicas is the desired number of online replicas.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 
 	// ExpireTime indicates when this portrait value will expire.

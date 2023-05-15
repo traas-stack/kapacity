@@ -206,7 +206,7 @@ const (
 // StaticHorizontalPortraitData defines the static portrait data.
 type StaticHorizontalPortraitData struct {
 	// Replicas is the desired number of online replicas.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 }
 
@@ -234,7 +234,7 @@ type ReplicaTimeSeriesPoint struct {
 	Timestamp int64 `json:"timestamp"`
 
 	// Replicas is the desired number of online replicas from this point.
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 }
 
