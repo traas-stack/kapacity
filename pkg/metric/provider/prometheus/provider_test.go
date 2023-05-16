@@ -43,39 +43,39 @@ type fakePromAPI struct {
 	err        error
 }
 
-func (f *fakePromAPI) Alerts(ctx context.Context) (promapiv1.AlertsResult, error) {
+func (f *fakePromAPI) Alerts(context.Context) (promapiv1.AlertsResult, error) {
 	return promapiv1.AlertsResult{}, nil
 }
 
-func (f *fakePromAPI) AlertManagers(ctx context.Context) (promapiv1.AlertManagersResult, error) {
+func (f *fakePromAPI) AlertManagers(context.Context) (promapiv1.AlertManagersResult, error) {
 	return promapiv1.AlertManagersResult{}, nil
 }
 
-func (f *fakePromAPI) CleanTombstones(ctx context.Context) error {
+func (f *fakePromAPI) CleanTombstones(context.Context) error {
 	return nil
 }
 
-func (f *fakePromAPI) Config(ctx context.Context) (promapiv1.ConfigResult, error) {
+func (f *fakePromAPI) Config(context.Context) (promapiv1.ConfigResult, error) {
 	return promapiv1.ConfigResult{}, nil
 }
 
-func (f *fakePromAPI) DeleteSeries(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) error {
+func (f *fakePromAPI) DeleteSeries(context.Context, []string, time.Time, time.Time) error {
 	return nil
 }
 
-func (f *fakePromAPI) Flags(ctx context.Context) (promapiv1.FlagsResult, error) {
+func (f *fakePromAPI) Flags(context.Context) (promapiv1.FlagsResult, error) {
 	return promapiv1.FlagsResult{}, nil
 }
 
-func (f *fakePromAPI) LabelNames(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]string, promapiv1.Warnings, error) {
+func (f *fakePromAPI) LabelNames(context.Context, []string, time.Time, time.Time) ([]string, promapiv1.Warnings, error) {
 	return nil, promapiv1.Warnings{}, nil
 }
 
-func (f *fakePromAPI) LabelValues(ctx context.Context, label string, matches []string, startTime time.Time, endTime time.Time) (model.LabelValues, promapiv1.Warnings, error) {
+func (f *fakePromAPI) LabelValues(context.Context, string, []string, time.Time, time.Time) (model.LabelValues, promapiv1.Warnings, error) {
 	return model.LabelValues{}, promapiv1.Warnings{}, nil
 }
 
-func (f *fakePromAPI) Query(ctx context.Context, query string, ts time.Time) (model.Value, promapiv1.Warnings, error) {
+func (f *fakePromAPI) Query(context.Context, string, time.Time) (model.Value, promapiv1.Warnings, error) {
 	vector := model.Vector{}
 	for k, v := range f.timeSeries {
 		sample := &model.Sample{
@@ -87,7 +87,7 @@ func (f *fakePromAPI) Query(ctx context.Context, query string, ts time.Time) (mo
 	return vector, f.warnings, f.err
 }
 
-func (f *fakePromAPI) QueryRange(ctx context.Context, query string, r promapiv1.Range) (model.Value, promapiv1.Warnings, error) {
+func (f *fakePromAPI) QueryRange(_ context.Context, _ string, r promapiv1.Range) (model.Value, promapiv1.Warnings, error) {
 	samplePairs := make([]model.SamplePair, 0, len(f.timeSeries))
 	for k, v := range f.timeSeries {
 		timestamp := time.Unix(k, 0)
@@ -106,47 +106,47 @@ func (f *fakePromAPI) QueryRange(ctx context.Context, query string, r promapiv1.
 	}, f.warnings, f.err
 }
 
-func (f *fakePromAPI) QueryExemplars(ctx context.Context, query string, startTime time.Time, endTime time.Time) ([]promapiv1.ExemplarQueryResult, error) {
+func (f *fakePromAPI) QueryExemplars(context.Context, string, time.Time, time.Time) ([]promapiv1.ExemplarQueryResult, error) {
 	return nil, nil
 }
 
-func (f *fakePromAPI) Buildinfo(ctx context.Context) (promapiv1.BuildinfoResult, error) {
+func (f *fakePromAPI) Buildinfo(context.Context) (promapiv1.BuildinfoResult, error) {
 	return promapiv1.BuildinfoResult{}, nil
 }
 
-func (f *fakePromAPI) Runtimeinfo(ctx context.Context) (promapiv1.RuntimeinfoResult, error) {
+func (f *fakePromAPI) Runtimeinfo(context.Context) (promapiv1.RuntimeinfoResult, error) {
 	return promapiv1.RuntimeinfoResult{}, nil
 }
 
-func (f *fakePromAPI) Series(ctx context.Context, matches []string, startTime time.Time, endTime time.Time) ([]model.LabelSet, promapiv1.Warnings, error) {
+func (f *fakePromAPI) Series(context.Context, []string, time.Time, time.Time) ([]model.LabelSet, promapiv1.Warnings, error) {
 	return nil, promapiv1.Warnings{}, nil
 }
 
-func (f *fakePromAPI) Snapshot(ctx context.Context, skipHead bool) (promapiv1.SnapshotResult, error) {
+func (f *fakePromAPI) Snapshot(context.Context, bool) (promapiv1.SnapshotResult, error) {
 	return promapiv1.SnapshotResult{}, nil
 }
 
-func (f *fakePromAPI) Rules(ctx context.Context) (promapiv1.RulesResult, error) {
+func (f *fakePromAPI) Rules(context.Context) (promapiv1.RulesResult, error) {
 	return promapiv1.RulesResult{}, nil
 }
 
-func (f *fakePromAPI) Targets(ctx context.Context) (promapiv1.TargetsResult, error) {
+func (f *fakePromAPI) Targets(context.Context) (promapiv1.TargetsResult, error) {
 	return promapiv1.TargetsResult{}, nil
 }
 
-func (f *fakePromAPI) TargetsMetadata(ctx context.Context, matchTarget string, metric string, limit string) ([]promapiv1.MetricMetadata, error) {
+func (f *fakePromAPI) TargetsMetadata(context.Context, string, string, string) ([]promapiv1.MetricMetadata, error) {
 	return nil, nil
 }
 
-func (f *fakePromAPI) Metadata(ctx context.Context, metric string, limit string) (map[string][]promapiv1.Metadata, error) {
+func (f *fakePromAPI) Metadata(context.Context, string, string) (map[string][]promapiv1.Metadata, error) {
 	return nil, nil
 }
 
-func (f *fakePromAPI) TSDB(ctx context.Context) (promapiv1.TSDBResult, error) {
+func (f *fakePromAPI) TSDB(context.Context) (promapiv1.TSDBResult, error) {
 	return promapiv1.TSDBResult{}, nil
 }
 
-func (f *fakePromAPI) WalReplay(ctx context.Context) (promapiv1.WalReplayStatus, error) {
+func (f *fakePromAPI) WalReplay(context.Context) (promapiv1.WalReplayStatus, error) {
 	return promapiv1.WalReplayStatus{}, nil
 }
 

@@ -73,15 +73,15 @@ func TestSetState(t *testing.T) {
 	// set online state
 	SetState(pod, autoscalingv1alpha1.PodStateOnline)
 	_, ok := pod.Labels[LabelState]
-	assert.False(t, ok, "pod %s should has online state label", pod.Name)
+	assert.False(t, ok, "pod %s should have online state label", pod.Name)
 
 	// set cutoff state
 	SetState(pod, autoscalingv1alpha1.PodStateCutoff)
-	assert.Equal(t, string(autoscalingv1alpha1.PodStateCutoff), pod.Labels[LabelState], "pod %s should has online state label", pod.Name)
+	assert.Equal(t, string(autoscalingv1alpha1.PodStateCutoff), pod.Labels[LabelState], "pod %s should have online state label", pod.Name)
 
 	// set standby state
 	SetState(pod, autoscalingv1alpha1.PodStateStandby)
-	assert.Equal(t, string(autoscalingv1alpha1.PodStateStandby), pod.Labels[LabelState], "pod %s should has online state label", pod.Name)
+	assert.Equal(t, string(autoscalingv1alpha1.PodStateStandby), pod.Labels[LabelState], "pod %s should have online state label", pod.Name)
 }
 
 func TestStateChanged(t *testing.T) {

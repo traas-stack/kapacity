@@ -160,7 +160,7 @@ func prepareFakeMetricsClient(podName string, resourceName corev1.ResourceName, 
 					Namespace: testNamespace,
 					Labels:    map[string]string{"foo": "bar"},
 				},
-				Timestamp:  metav1.Time{time.Unix(timestamp, 0)},
+				Timestamp:  metav1.Unix(timestamp, 0),
 				Window:     metav1.Duration{Duration: time.Minute},
 				Containers: make([]v1beta1.ContainerMetrics, len(containerMetrics)),
 			}

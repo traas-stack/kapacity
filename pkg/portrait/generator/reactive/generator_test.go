@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -45,7 +45,7 @@ import (
 
 	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
-	"github.com/traas-stack/kapacity/pkg/scale"
+	pkgscale "github.com/traas-stack/kapacity/pkg/scale"
 )
 
 var (
@@ -92,7 +92,7 @@ func TestGenerateHorizontal(t *testing.T) {
 	}
 }
 
-func prepareScaleClient(t *testing.T) *scale.Scaler {
+func prepareScaleClient(t *testing.T) *pkgscale.Scaler {
 	fakeDiscoveryClient := &fakedisco.FakeDiscovery{Fake: &coretesting.Fake{}}
 	fakeDiscoveryClient.Resources = []*metav1.APIResourceList{
 		{
@@ -144,7 +144,7 @@ func prepareScaleClient(t *testing.T) *scale.Scaler {
 			if err != nil {
 				return nil, err
 			}
-			return &http.Response{StatusCode: http.StatusOK, Header: defaultHeaders, Body: ioutil.NopCloser(bytes.NewReader(res))}, nil
+			return &http.Response{StatusCode: http.StatusOK, Header: defaultHeaders, Body: io.NopCloser(bytes.NewReader(res))}, nil
 		default:
 			return nil, fmt.Errorf("unexpected request for URL %q with method %q", req.URL.String(), req.Method)
 		}
@@ -158,7 +158,7 @@ func prepareScaleClient(t *testing.T) *scale.Scaler {
 	}
 	resolver := corescale.NewDiscoveryScaleKindResolver(fakeDiscoveryClient)
 	client := corescale.New(fakeClient, restMapper, dynamic.LegacyAPIPathResolverFunc, resolver)
-	return scale.NewScaler(client, restMapper)
+	return pkgscale.NewScaler(client, restMapper)
 }
 
 func preparePod(index int) *corev1.Pod {
