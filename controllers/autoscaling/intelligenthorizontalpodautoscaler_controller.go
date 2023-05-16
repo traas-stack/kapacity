@@ -386,7 +386,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) updateAndFetchPortraitVal
 		// 2. It is the first candidate
 		// 3. Its priority is higher than the previous candidate
 		// 4. Its priority is the same as the previous candidate, but it desires more replicas than the previous one
-		if (value.ExpireTime.IsZero() || now.Before(&value.ExpireTime)) &&
+		if (value.ExpireTime.IsZero() || now.Before(value.ExpireTime)) &&
 			(candidatePortraitValue == nil ||
 				(priority > candidatePortraitPriority ||
 					(priority == candidatePortraitPriority && value.Replicas > candidatePortraitValue.Replicas))) {

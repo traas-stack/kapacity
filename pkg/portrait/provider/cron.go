@@ -59,7 +59,7 @@ func (h *CronHorizontal) FetchPortraitValue(_ context.Context, ihpa *autoscaling
 	return &autoscalingv1alpha1.HorizontalPortraitValue{
 		Provider:   h.GetPortraitIdentifier(ihpa, cfg),
 		Replicas:   rc.Replicas,
-		ExpireTime: metav1.NewTime(expireTime),
+		ExpireTime: &metav1.Time{Time: expireTime},
 	}, nil
 }
 
