@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -49,7 +48,7 @@ var (
 )
 
 func bytesBody(bodyBytes []byte) io.ReadCloser {
-	return ioutil.NopCloser(bytes.NewReader(bodyBytes))
+	return io.NopCloser(bytes.NewReader(bodyBytes))
 }
 
 func defaultHeaders() http.Header {

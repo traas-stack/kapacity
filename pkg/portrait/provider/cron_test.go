@@ -43,14 +43,14 @@ func TestCronHorizontal_GetPortraitIdentifier(t *testing.T) {
 func TestCronHorizontal_UpdatePortraitSpec(t *testing.T) {
 	horizontal := NewCronHorizontal(genericEvent)
 	cronHorizontal := horizontal.(*CronHorizontal)
-	cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider)
-	defer cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type))
+	assert.Nil(t, cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider))
+	defer assert.Nil(t, cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type)))
 
 	taskV, ok := cronHorizontal.cronTaskTriggerManager.cronTaskMap.Load(namespaceName)
 	assert.True(t, ok)
 
 	hash, err := hashstructure.Hash(crons, hashstructure.FormatV2, nil)
-	assert.True(t, err == nil)
+	assert.Nil(t, err)
 
 	task := taskV.(*cronTask)
 	assert.True(t, task.Hash == hash)
@@ -59,8 +59,8 @@ func TestCronHorizontal_UpdatePortraitSpec(t *testing.T) {
 func TestCronHorizontal_FetchPortraitValue(t *testing.T) {
 	horizontal := NewCronHorizontal(genericEvent)
 	cronHorizontal := horizontal.(*CronHorizontal)
-	cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider)
-	defer cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type))
+	assert.Nil(t, cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider))
+	defer assert.Nil(t, cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type)))
 
 	portraitValue, err := cronHorizontal.FetchPortraitValue(ctx, ihpa, cronHorizontalProvider)
 	assert.Nil(t, err)
@@ -71,8 +71,8 @@ func TestCronHorizontal_FetchPortraitValue(t *testing.T) {
 func TestCronHorizontal_CleanupPortrait(t *testing.T) {
 	horizontal := NewCronHorizontal(genericEvent)
 	cronHorizontal := horizontal.(*CronHorizontal)
-	cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider)
-	cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type))
+	assert.Nil(t, cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider))
+	assert.Nil(t, cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type)))
 
 	_, ok := cronHorizontal.cronTaskTriggerManager.cronTaskMap.Load(namespaceName)
 	assert.False(t, ok)
