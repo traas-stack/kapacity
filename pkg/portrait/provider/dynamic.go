@@ -149,7 +149,10 @@ func (h *DynamicHorizontal) CleanupPortrait(ctx context.Context, ihpa *autoscali
 func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler,
 	provider string, hpNamespacedName types.NamespacedName, portraitData *autoscalingv1alpha1.HorizontalPortraitData) (*autoscalingv1alpha1.HorizontalPortraitValue, error) {
 	now := time.Now()
-	expireTime := portraitData.ExpireTime.Time
+	expireTime := time.Time{}
+	if portraitData.ExpireTime != nil {
+		expireTime = portraitData.ExpireTime.Time
+	}
 	// cleanup and return nothing if the portrait data is expired
 	if !expireTime.IsZero() && !now.Before(expireTime) {
 		h.cronTaskTriggerManager.StopCronTaskTrigger(hpNamespacedName)
@@ -224,7 +227,7 @@ func (h *DynamicHorizontal) buildPortraitValue(ctx context.Context, ihpa *autosc
 		return &autoscalingv1alpha1.HorizontalPortraitValue{
 			Provider:   provider,
 			Replicas:   replicas,
-			ExpireTime: metav1.NewTime(expireTime),
+			ExpireTime: &metav1.Time{Time: expireTime},
 		}, nil
 	} else {
 		return nil, nil

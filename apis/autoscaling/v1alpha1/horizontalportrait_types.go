@@ -187,7 +187,7 @@ type HorizontalPortraitData struct {
 
 	// ExpireTime indicates when this portrait data will expire.
 	// +optional
-	ExpireTime metav1.Time `json:"expireTime,omitempty"`
+	ExpireTime *metav1.Time `json:"expireTime,omitempty"`
 }
 
 type HorizontalPortraitDataType string

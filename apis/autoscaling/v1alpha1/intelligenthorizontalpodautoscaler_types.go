@@ -341,7 +341,7 @@ type HorizontalPortraitValue struct {
 
 	// ExpireTime indicates when this portrait value will expire.
 	// +optional
-	ExpireTime metav1.Time `json:"expireTime,omitempty"`
+	ExpireTime *metav1.Time `json:"expireTime,omitempty"`
 }
 
 // GrayStatus is the representation of gray status of replicas change.
