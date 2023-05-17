@@ -44,7 +44,9 @@ func TestCronHorizontal_UpdatePortraitSpec(t *testing.T) {
 	horizontal := NewCronHorizontal(genericEvent)
 	cronHorizontal := horizontal.(*CronHorizontal)
 	assert.Nil(t, cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider))
-	defer assert.Nil(t, cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type)))
+	defer func() {
+		assert.Nil(t, cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type)))
+	}()
 
 	taskV, ok := cronHorizontal.cronTaskTriggerManager.cronTaskMap.Load(namespaceName)
 	assert.True(t, ok)
@@ -60,7 +62,9 @@ func TestCronHorizontal_FetchPortraitValue(t *testing.T) {
 	horizontal := NewCronHorizontal(genericEvent)
 	cronHorizontal := horizontal.(*CronHorizontal)
 	assert.Nil(t, cronHorizontal.UpdatePortraitSpec(ctx, ihpa, cronHorizontalProvider))
-	defer assert.Nil(t, cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type)))
+	defer func() {
+		assert.Nil(t, cronHorizontal.CleanupPortrait(ctx, ihpa, string(cronHorizontalProvider.Type)))
+	}()
 
 	portraitValue, err := cronHorizontal.FetchPortraitValue(ctx, ihpa, cronHorizontalProvider)
 	assert.Nil(t, err)
