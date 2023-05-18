@@ -142,3 +142,23 @@ func TestUpdatePodCondition(t *testing.T) {
 	isUpdate = UpdatePodCondition(podStatus, newCondition)
 	assert.True(t, isUpdate)
 }
+
+func TestAddPodCondition(t *testing.T) {
+	podStatus := &corev1.PodStatus{}
+	condition := &corev1.PodCondition{
+		Type:   corev1.PodReady,
+		Status: corev1.ConditionFalse,
+		Reason: "PodReady",
+	}
+
+	assert.True(t, AddPodCondition(podStatus, condition))
+	assert.False(t, AddPodCondition(podStatus, condition))
+}
+
+func TestAddPodReadinessGate(t *testing.T) {
+	podSpec := &corev1.PodSpec{}
+	conditionType := corev1.PodReady
+
+	assert.True(t, AddPodReadinessGate(podSpec, conditionType))
+	assert.False(t, AddPodReadinessGate(podSpec, conditionType))
+}

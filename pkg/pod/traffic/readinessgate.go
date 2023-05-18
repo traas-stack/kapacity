@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	readinessGateOnline = "kapacity.traas.io/online"
+	ReadinessGateOnline = "kapacity.traas.io/online"
 )
 
 // ReadinessGate controls pod traffic by setting a specific readiness gate to make the pod ready/unready
@@ -57,7 +57,7 @@ func (c *ReadinessGate) Off(ctx context.Context, pods []*corev1.Pod) error {
 func (c *ReadinessGate) setReadinessGateStatus(ctx context.Context, pod *corev1.Pod, status corev1.ConditionStatus) error {
 	patch := client.MergeFrom(pod.DeepCopy())
 	if util.UpdatePodCondition(&pod.Status, &corev1.PodCondition{
-		Type:   readinessGateOnline,
+		Type:   ReadinessGateOnline,
 		Status: status,
 	}) {
 		return c.Status().Patch(ctx, pod, patch)
