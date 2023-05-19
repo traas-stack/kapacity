@@ -48,6 +48,7 @@ import (
 
 	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/controllers/autoscaling"
+	"github.com/traas-stack/kapacity/internal/webhook"
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/prometheus"
@@ -149,7 +150,12 @@ func main() {
 		},
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to build manager")
+		os.Exit(1)
+	}
+
+	if err := webhook.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to set up webhook server")
 		os.Exit(1)
 	}
 

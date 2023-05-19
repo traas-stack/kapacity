@@ -105,3 +105,26 @@ func UpdatePodCondition(status *corev1.PodStatus, condition *corev1.PodCondition
 	// Return true if one of the fields have changed.
 	return !isEqual
 }
+
+// AddPodCondition adds a pod condition if not exists. Sets LastTransitionTime to now if not exists.
+// Returns true if pod condition has been added.
+func AddPodCondition(status *corev1.PodStatus, condition *corev1.PodCondition) bool {
+	if _, oldCondition := GetPodCondition(status, condition.Type); oldCondition != nil {
+		return false
+	}
+	condition.LastTransitionTime = metav1.Now()
+	status.Conditions = append(status.Conditions, *condition)
+	return true
+}
+
+// AddPodReadinessGate adds the provided condition to the pod's readiness gates.
+// Returns true if the readiness gate has been added.
+func AddPodReadinessGate(spec *corev1.PodSpec, conditionType corev1.PodConditionType) bool {
+	for _, rg := range spec.ReadinessGates {
+		if rg.ConditionType == conditionType {
+			return false
+		}
+	}
+	spec.ReadinessGates = append(spec.ReadinessGates, corev1.PodReadinessGate{ConditionType: conditionType})
+	return true
+}
