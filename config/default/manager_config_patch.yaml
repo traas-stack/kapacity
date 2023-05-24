@@ -7,6 +7,4 @@ spec:
   template:
     spec:
       containers:
-        - name: manager
-          args:
-            - "--secure-listen-address=0.0.0.0:8443"
+      - name: manager
