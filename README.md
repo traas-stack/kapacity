@@ -1,5 +1,4 @@
-<p align="center"><img src="docs/images/kapacity-icon.png" width="300"/></p>
-
+# Kapacity
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://www.apache.org/licenses/LICENSE-2.0.html)
 ![GoVersion](https://img.shields.io/badge/go-v1.19%2B-blue)
