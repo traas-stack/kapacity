@@ -31,7 +31,7 @@ helm repo update
 
 ```bash
 kubectl create namespace kapacity-system
-helm install kapacity xxx --namespace kapacity-system
+helm install kapacity kapacity --namespace kapacity-system
 ```
 
 #### Uninstall
