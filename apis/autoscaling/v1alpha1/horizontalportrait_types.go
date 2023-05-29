@@ -74,9 +74,12 @@ const (
 // MetricSpec represents the configuration for a single metric.
 // It is an extended autoscalingv2.MetricSpec.
 type MetricSpec struct {
-	// Name is the name of this metric.
-	// It must be unique across all metrics.
-	Name string `json:"name"`
+	k8sautoscalingv2.MetricSpec `json:",inline"`
+
+	// Name is the unique identifier of this metric spec.
+	// It must be unique across all metric specs if specified.
+	// +optional
+	Name string `json:"name,omitempty"`
 
 	// Operator is an optional binary arithmetic operator which is used to specify
 	// a custom comparison rule "<actual> <operator> <target>" for the metric.
@@ -84,8 +87,6 @@ type MetricSpec struct {
 	// +optional
 	// +kubebuilder:validation:Enum===;>;<;>=;<=
 	Operator Operator `json:"operator,omitempty"`
-
-	k8sautoscalingv2.MetricSpec `json:",inline"`
 }
 
 type Operator string

@@ -107,11 +107,11 @@ func (g *PortraitGenerator) GenerateHorizontal(ctx context.Context, namespace st
 	for _, metric := range metrics {
 		replicasProposal, err := replicaCalc.ComputeReplicasForMetric(ctx, specReplicas, metric, namespace, selector)
 		if err != nil {
+			l.Error(err, "failed to compute replicas for metric")
 			if invalidMetricsCount == 0 {
 				invalidMetricError = err
 			}
 			invalidMetricsCount++
-			l.Error(err, "failed to compute replicas for metric", "metricName", metric.Name)
 			continue
 		}
 		if replicasProposal > replicas {

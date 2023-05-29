@@ -258,8 +258,8 @@ spec:
                       - target
                       type: object
                     name:
-                      description: Name is the name of this metric. It must be unique
-                        across all metrics.
+                      description: Name is the unique identifier of this metric spec.
+                        It must be unique across all metric specs if specified.
                       type: string
                     object:
                       description: object refers to a metric describing a single kubernetes
@@ -564,7 +564,6 @@ spec:
                         HPAContainerMetrics is enabled'
                       type: string
                   required:
-                  - name
                   - type
                   type: object
                 type: array
