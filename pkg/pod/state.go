@@ -75,7 +75,7 @@ func StateChanged(old, new *corev1.Pod) bool {
 // FilterAndClassifyByRunningState filter and classify given pods by their running states.
 // It returns the classified result and the total number of running pods.
 func FilterAndClassifyByRunningState(pods []corev1.Pod) (result map[autoscalingv1alpha1.PodState][]*corev1.Pod, total int) {
-	result = make(map[autoscalingv1alpha1.PodState][]*corev1.Pod)
+	result = make(map[autoscalingv1alpha1.PodState][]*corev1.Pod, len(runningStates))
 	for _, state := range runningStates {
 		result[state] = make([]*corev1.Pod, 0)
 	}
@@ -117,7 +117,7 @@ func NewStateManager(rp *autoscalingv1alpha1.ReplicaProfile, sorter sorter.Inter
 	sm := &StateManager{
 		rp:         rp,
 		sorter:     sorter,
-		statesInfo: make(map[autoscalingv1alpha1.PodState]*stateInfo),
+		statesInfo: make(map[autoscalingv1alpha1.PodState]*stateInfo, len(defaultStatesOrdered)),
 		podNameMap: make(map[string]*corev1.Pod),
 	}
 	for _, state := range defaultStatesOrdered {
