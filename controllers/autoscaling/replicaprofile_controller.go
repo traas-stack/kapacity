@@ -348,7 +348,7 @@ func (r *ReplicaProfileReconciler) SetupWithManager(ctx context.Context, mgr ctr
 			&source.Kind{Type: &corev1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
 				if n := r.findReplicaProfileToEnqueueForPod(ctx, object); n != nil {
-					return []reconcile.Request{{*n}}
+					return []reconcile.Request{{NamespacedName: *n}}
 				}
 				return []reconcile.Request{}
 			}),

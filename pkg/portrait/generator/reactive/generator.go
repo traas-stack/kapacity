@@ -61,7 +61,7 @@ func (g *PortraitGenerator) GenerateHorizontal(ctx context.Context, namespace st
 	switch algorithm.Type {
 	case autoscalingv1alpha1.KubeHPAPortraitAlgorithmType:
 	default:
-		return nil, 0, fmt.Errorf("unsupported alogrithm type %q", algorithm.Type)
+		return nil, 0, fmt.Errorf("unsupported algorithm type %q", algorithm.Type)
 	}
 
 	var err error

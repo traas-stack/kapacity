@@ -139,7 +139,7 @@ func prepareScaleClient(t *testing.T) *pkgscale.Scaler {
 		}
 
 		switch req.Method {
-		case "GET":
+		case http.MethodGet:
 			res, err := json.Marshal(scale)
 			if err != nil {
 				return nil, err

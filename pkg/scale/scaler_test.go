@@ -123,7 +123,7 @@ func fakeScaleClient(t *testing.T) (corescale.ScalesGetter, apimeta.RESTMapper) 
 		}
 
 		switch req.Method {
-		case "GET":
+		case http.MethodGet:
 			res, err := json.Marshal(scale)
 			if err != nil {
 				return nil, err

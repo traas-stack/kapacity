@@ -103,7 +103,7 @@ func TestOff(t *testing.T) {
 
 func hasExpectedTraffic(conditions []corev1.PodCondition, expectedStatus corev1.ConditionStatus) bool {
 	for _, condition := range conditions {
-		if condition.Type == readinessGateOnline {
+		if condition.Type == ReadinessGateOnline {
 			return condition.Status == expectedStatus
 		}
 	}
