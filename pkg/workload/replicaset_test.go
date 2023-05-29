@@ -25,17 +25,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestDeployment_Sort(t *testing.T) {
+func TestReplicaSet_Sort(t *testing.T) {
 	// TODO
 }
 
-func TestDeployment_CanSelectPodsToScaleDown(t *testing.T) {
-	deployment := Deployment{}
-	result := deployment.CanSelectPodsToScaleDown(context.Background())
-	assert.False(t, result, "can't select pods to scale down for deployment resource")
+func TestReplicaSet_CanSelectPodsToScaleDown(t *testing.T) {
+	ReplicaSet := ReplicaSet{}
+	result := ReplicaSet.CanSelectPodsToScaleDown(context.Background())
+	assert.False(t, result, "can't select pods to scale down for replicaset resource")
 }
 
-func TestDeployment_SelectPodsToScaleDown(t *testing.T) {
+func TestReplicaSet_SelectPodsToScaleDown(t *testing.T) {
 	pods := []*corev1.Pod{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -49,7 +49,7 @@ func TestDeployment_SelectPodsToScaleDown(t *testing.T) {
 		},
 	}
 
-	deployment := Deployment{}
-	err := deployment.SelectPodsToScaleDown(context.Background(), pods)
-	assert.NotNil(t, err, "does not support select pods for deployment resource")
+	ReplicaSet := ReplicaSet{}
+	err := ReplicaSet.SelectPodsToScaleDown(context.Background(), pods)
+	assert.NotNil(t, err, "does not support select pods for replicaset resource")
 }
