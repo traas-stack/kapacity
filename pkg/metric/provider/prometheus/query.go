@@ -31,10 +31,13 @@ import (
 
 const (
 	defaultPodCPUUsageQueryTemplate = `sum by (namespace, pod) (irate(container_cpu_usage_seconds_total{namespace="<<.Namespace>>",pod="<<.PodName>>",container!="",container!="POD"}[<<.Window>>]))`
+	defaultPodMemUsageQueryTemplate = `sum by (namespace, pod) (container_memory_working_set_bytes{namespace="<<.Namespace>>",pod="<<.PodName>>",container!="",container!="POD"})`
 
 	defaultContainerCPUUsageQueryTemplate = `irate(container_cpu_usage_seconds_total{namespace="<<.Namespace>>",pod="<<.PodName>>",container="<<.ContainerName>>"}[<<.Window>>])`
+	defaultContainerMemUsageQueryTemplate = `container_memory_working_set_bytes{namespace="<<.Namespace>>",pod="<<.PodName>>",container="<<.ContainerName>>"}`
 
 	defaultWorkloadCPUUsageQueryTemplate = `sum by (namespace) (irate(container_cpu_usage_seconds_total{namespace="<<.Namespace>>",pod=~"<<.PodNameRegex>>",container!="",container!="POD"}[<<.Window>>]))`
+	defaultWorkloadMemUsageQueryTemplate = `sum by (namespace) (container_memory_working_set_bytes{namespace="<<.Namespace>>",pod=~"<<.PodNameRegex>>",container!="",container!="POD"})`
 )
 
 type queryTemplateArgs struct {

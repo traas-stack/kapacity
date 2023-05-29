@@ -52,13 +52,27 @@ func NewMetricProvider(client client.Client, promClient promapi.Client, window t
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse pod cpu usage query template: %v", err)
 	}
+	podMemUsageQueryTemplate, err := template.New("pod-mem-usage-query").Delims("<<", ">>").Parse(defaultPodMemUsageQueryTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse pod mem usage query template: %v", err)
+	}
+
 	containerCPUUsageQueryTemplate, err := template.New("container-cpu-usage-query").Delims("<<", ">>").Parse(defaultContainerCPUUsageQueryTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse container cpu usage query template: %v", err)
 	}
+	containerMemUsageQueryTemplate, err := template.New("container-mem-usage-query").Delims("<<", ">>").Parse(defaultContainerMemUsageQueryTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse container mem usage query template: %v", err)
+	}
+
 	workloadCPUUsageQueryTemplate, err := template.New("workload-cpu-usage-query").Delims("<<", ">>").Parse(defaultWorkloadCPUUsageQueryTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse workload cpu usage query template: %v", err)
+	}
+	workloadMemUsageQueryTemplate, err := template.New("workload-mem-usage-query").Delims("<<", ">>").Parse(defaultWorkloadMemUsageQueryTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse workload mem usage query template: %v", err)
 	}
 
 	return &MetricProvider{
@@ -66,13 +80,16 @@ func NewMetricProvider(client client.Client, promClient promapi.Client, window t
 		promAPI: promapiv1.NewAPI(promClient),
 		window:  window,
 		podResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU: podCPUUsageQueryTemplate,
+			corev1.ResourceCPU:    podCPUUsageQueryTemplate,
+			corev1.ResourceMemory: podMemUsageQueryTemplate,
 		},
 		containerResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU: containerCPUUsageQueryTemplate,
+			corev1.ResourceCPU:    containerCPUUsageQueryTemplate,
+			corev1.ResourceMemory: containerMemUsageQueryTemplate,
 		},
 		workloadResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU: workloadCPUUsageQueryTemplate,
+			corev1.ResourceCPU:    workloadCPUUsageQueryTemplate,
+			corev1.ResourceMemory: workloadMemUsageQueryTemplate,
 		},
 	}, nil
 }
