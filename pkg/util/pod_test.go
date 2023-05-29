@@ -70,6 +70,57 @@ func TestIsPodRunning(t *testing.T) {
 	assert.False(t, isRunning)
 }
 
+func TestIsPodActive(t *testing.T) {
+	// running pod
+	runningPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-1",
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+		},
+	}
+	assert.True(t, IsPodActive(runningPod))
+
+	// failed pod
+	failedPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-2",
+		},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodFailed,
+		},
+	}
+	assert.False(t, IsPodActive(failedPod))
+}
+
+func TestIsPodReady(t *testing.T) {
+	// ready pod
+	runningPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-1",
+		},
+		Status: corev1.PodStatus{
+			Conditions: []corev1.PodCondition{
+				{
+					Type:   corev1.PodReady,
+					Status: corev1.ConditionTrue,
+					Reason: "PodReady",
+				},
+			},
+		},
+	}
+	assert.True(t, IsPodReady(runningPod))
+
+	// not ready pod
+	failedPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-2",
+		},
+	}
+	assert.False(t, IsPodReady(failedPod))
+}
+
 func TestGetPodCondition(t *testing.T) {
 	conditions := []corev1.PodCondition{
 		{

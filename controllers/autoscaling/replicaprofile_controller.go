@@ -184,7 +184,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// this can prevent unexpected behaviors when the target workload is updating/self-healing.
 	canDoStateChange := currentRunningPodCount == int(scale.Spec.Replicas)
 	if needStateChange && canDoStateChange {
-		w, err := r.getWorkload(rp)
+		w, err := r.getWorkload(rp, selector)
 		if err != nil {
 			l.Error(err, "failed to get target workload")
 			r.errorOut(ctx, rp, rpStatusOriginal, autoscalingv1alpha1.ReplicaProfileApplied, metav1.ConditionFalse,
@@ -413,17 +413,26 @@ func (r *ReplicaProfileReconciler) findReplicaProfileToEnqueueForPod(ctx context
 	return nil
 }
 
-func (r *ReplicaProfileReconciler) getWorkload(rp *autoscalingv1alpha1.ReplicaProfile) (workload.Interface, error) {
+func (r *ReplicaProfileReconciler) getWorkload(rp *autoscalingv1alpha1.ReplicaProfile, selector labels.Selector) (workload.Interface, error) {
 	gvk, err := util.ParseGVK(rp.Spec.ScaleTargetRef.APIVersion, rp.Spec.ScaleTargetRef.Kind)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse scale target's gvk: %v", err)
 	}
 	switch {
+	case gvk.Group == "apps" && gvk.Kind == "ReplicaSet":
+		return &workload.ReplicaSet{
+			Client:    r.Client,
+			Namespace: rp.Namespace,
+			Selector:  selector,
+		}, nil
 	case gvk.Group == "apps" && gvk.Kind == "Deployment":
-		return &workload.Deployment{}, nil
+		return &workload.Deployment{
+			Client:    r.Client,
+			Namespace: rp.Namespace,
+			Selector:  selector,
+		}, nil
 	case gvk.Group == "apps" && gvk.Kind == "StatefulSet":
 		return &workload.StatefulSet{}, nil
-	// TODO(zqzten): support more workloads
 	// TODO(zqzten): support external workload
 	default:
 		return nil, fmt.Errorf("unknown workload with gvk \"%v\"", gvk)

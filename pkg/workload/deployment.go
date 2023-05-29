@@ -21,14 +21,24 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Deployment represents behaviors of a Kubernetes Deployment.
-type Deployment struct{}
+type Deployment struct {
+	client.Client
+	Namespace string
+	Selector  labels.Selector
+}
 
-func (*Deployment) Sort(_ context.Context, pods []*corev1.Pod) ([]*corev1.Pod, error) {
-	// FIXME(zqzten): impl it
-	return pods, nil
+func (w *Deployment) Sort(ctx context.Context, pods []*corev1.Pod) ([]*corev1.Pod, error) {
+	rs := &ReplicaSet{
+		Client:    w.Client,
+		Namespace: w.Namespace,
+		Selector:  w.Selector,
+	}
+	return rs.Sort(ctx, pods)
 }
 
 func (*Deployment) CanSelectPodsToScaleDown(context.Context) bool {
