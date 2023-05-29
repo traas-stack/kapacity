@@ -23,7 +23,6 @@ import (
 	"time"
 
 	promapiv1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"github.com/prometheus/common/model"
 	prommodel "github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -71,14 +70,14 @@ func (f *fakePromAPI) LabelNames(context.Context, []string, time.Time, time.Time
 	return nil, promapiv1.Warnings{}, nil
 }
 
-func (f *fakePromAPI) LabelValues(context.Context, string, []string, time.Time, time.Time) (model.LabelValues, promapiv1.Warnings, error) {
-	return model.LabelValues{}, promapiv1.Warnings{}, nil
+func (f *fakePromAPI) LabelValues(context.Context, string, []string, time.Time, time.Time) (prommodel.LabelValues, promapiv1.Warnings, error) {
+	return prommodel.LabelValues{}, promapiv1.Warnings{}, nil
 }
 
-func (f *fakePromAPI) Query(context.Context, string, time.Time) (model.Value, promapiv1.Warnings, error) {
-	vector := model.Vector{}
+func (f *fakePromAPI) Query(context.Context, string, time.Time) (prommodel.Value, promapiv1.Warnings, error) {
+	vector := prommodel.Vector{}
 	for k, v := range f.timeSeries {
-		sample := &model.Sample{
+		sample := &prommodel.Sample{
 			Timestamp: prommodel.TimeFromUnix(k),
 			Value:     prommodel.SampleValue(v),
 		}
@@ -87,20 +86,20 @@ func (f *fakePromAPI) Query(context.Context, string, time.Time) (model.Value, pr
 	return vector, f.warnings, f.err
 }
 
-func (f *fakePromAPI) QueryRange(_ context.Context, _ string, r promapiv1.Range) (model.Value, promapiv1.Warnings, error) {
-	samplePairs := make([]model.SamplePair, 0, len(f.timeSeries))
+func (f *fakePromAPI) QueryRange(_ context.Context, _ string, r promapiv1.Range) (prommodel.Value, promapiv1.Warnings, error) {
+	samplePairs := make([]prommodel.SamplePair, 0, len(f.timeSeries))
 	for k, v := range f.timeSeries {
 		timestamp := time.Unix(k, 0)
 		if timestamp.After(r.Start) && timestamp.Before(r.End) {
-			sample := model.SamplePair{
+			sample := prommodel.SamplePair{
 				Timestamp: prommodel.TimeFromUnix(k),
 				Value:     prommodel.SampleValue(v),
 			}
 			samplePairs = append(samplePairs, sample)
 		}
 	}
-	return model.Matrix{
-		&model.SampleStream{
+	return prommodel.Matrix{
+		&prommodel.SampleStream{
 			Values: samplePairs,
 		},
 	}, f.warnings, f.err
@@ -118,7 +117,7 @@ func (f *fakePromAPI) Runtimeinfo(context.Context) (promapiv1.RuntimeinfoResult,
 	return promapiv1.RuntimeinfoResult{}, nil
 }
 
-func (f *fakePromAPI) Series(context.Context, []string, time.Time, time.Time) ([]model.LabelSet, promapiv1.Warnings, error) {
+func (f *fakePromAPI) Series(context.Context, []string, time.Time, time.Time) ([]prommodel.LabelSet, promapiv1.Warnings, error) {
 	return nil, promapiv1.Warnings{}, nil
 }
 
