@@ -12,7 +12,7 @@ metadata:
   name: horizontalportrait-viewer-role
 rules:
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits
   verbs:
@@ -20,7 +20,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits/status
   verbs:

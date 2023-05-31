@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: intelligenthorizontalpodautoscalers.autoscaling.kapacity.traas.io
+  name: intelligenthorizontalpodautoscalers.autoscaling.kapacitystack.io
 spec:
-  group: autoscaling.kapacity.traas.io
+  group: autoscaling.kapacitystack.io
   names:
     kind: IntelligentHorizontalPodAutoscaler
     listKind: IntelligentHorizontalPodAutoscalerList

@@ -68,9 +68,9 @@ type ReplicaProfileReconciler struct {
 	podSelectorCache sync.Map // map[types.NamespacedName]labels.Selector
 }
 
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=replicaprofiles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=replicaprofiles/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=replicaprofiles/finalizers,verbs=update
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=replicaprofiles,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=replicaprofiles/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=replicaprofiles/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;patch

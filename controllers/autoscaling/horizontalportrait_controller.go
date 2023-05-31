@@ -51,9 +51,9 @@ type HorizontalPortraitReconciler struct {
 	PortraitGenerators map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface
 }
 
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=horizontalportraits,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=horizontalportraits/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=horizontalportraits/finalizers,verbs=update
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=horizontalportraits,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=horizontalportraits/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=horizontalportraits/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=metrics.k8s.io,resources=*,verbs=get;list;watch
 //+kubebuilder:rbac:groups=custom.metrics.k8s.io,resources=*,verbs=get;list;watch

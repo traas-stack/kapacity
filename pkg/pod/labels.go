@@ -17,5 +17,5 @@
 package pod
 
 const (
-	LabelState = "kapacity.traas.io/pod-state"
+	LabelState = "kapacitystack.io/pod-state"
 )

@@ -41,7 +41,7 @@ rules:
   - get
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits
   verbs:
@@ -53,13 +53,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits/finalizers
   verbs:
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits/status
   verbs:
@@ -67,7 +67,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - intelligenthorizontalpodautoscalers
   verbs:
@@ -79,13 +79,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - intelligenthorizontalpodautoscalers/finalizers
   verbs:
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - intelligenthorizontalpodautoscalers/status
   verbs:
@@ -93,7 +93,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles
   verbs:
@@ -105,13 +105,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles/finalizers
   verbs:
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles/status
   verbs:

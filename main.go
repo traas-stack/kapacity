@@ -134,7 +134,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "manager.kapacity.traas.io",
+		LeaderElectionID:       "kapacity-manager.kapacitystack.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -143,9 +143,9 @@ func main() {
 		LeaderElectionReleaseOnCancel: true,
 		Controller: ctrlconfigv1alpha1.ControllerConfigurationSpec{
 			GroupKindConcurrency: map[string]int{
-				"ReplicaProfile.autoscaling.kapacity.traas.io":                     reconcileConcurrency,
-				"IntelligentHorizontalPodAutoscaler.autoscaling.kapacity.traas.io": reconcileConcurrency,
-				"HorizontalPortrait.autoscaling.kapacity.traas.io":                 reconcileConcurrency,
+				"ReplicaProfile.autoscaling.kapacitystack.io":                     reconcileConcurrency,
+				"IntelligentHorizontalPodAutoscaler.autoscaling.kapacitystack.io": reconcileConcurrency,
+				"HorizontalPortrait.autoscaling.kapacitystack.io":                 reconcileConcurrency,
 			},
 		},
 	})

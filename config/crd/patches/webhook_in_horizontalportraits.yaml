@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: horizontalportraits.autoscaling.kapacity.traas.io
+  name: horizontalportraits.autoscaling.kapacitystack.io
 spec:
   conversion:
     strategy: Webhook

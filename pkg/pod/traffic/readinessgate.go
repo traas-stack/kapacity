@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	ReadinessGateOnline = "kapacity.traas.io/online"
+	ReadinessGateOnline = "kapacitystack.io/online"
 )
 
 // ReadinessGate controls pod traffic by setting a specific readiness gate to make the pod ready/unready

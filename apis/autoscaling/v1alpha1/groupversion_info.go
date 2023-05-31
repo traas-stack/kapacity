@@ -16,7 +16,7 @@
 
 // Package v1alpha1 contains API Schema definitions for the autoscaling v1alpha1 API group.
 // +kubebuilder:object:generate=true
-// +groupName=autoscaling.kapacity.traas.io
+// +groupName=autoscaling.kapacitystack.io
 package v1alpha1
 
 import (
@@ -26,7 +26,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "autoscaling.kapacity.traas.io", Version: "v1alpha1"}
+	GroupVersion = schema.GroupVersion{Group: "autoscaling.kapacitystack.io", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
