@@ -30,7 +30,7 @@ var (
 	horizontalPortrait       = &v1alpha1.HorizontalPortrait{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HorizontalPortrait",
-			APIVersion: "autoscaling.kapacity.traas.io/v1alpha1",
+			APIVersion: "autoscaling.kapacitystack.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "hp",

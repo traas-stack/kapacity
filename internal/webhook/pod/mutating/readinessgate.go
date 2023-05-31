@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	labelInjectPodReadinessGate = "kapacity.traas.io/inject-pod-readiness-gate"
+	labelInjectPodReadinessGate = "kapacitystack.io/inject-pod-readiness-gate"
 )
 
 func injectReadinessGate(req admission.Request, pod *corev1.Pod) (changed bool) {

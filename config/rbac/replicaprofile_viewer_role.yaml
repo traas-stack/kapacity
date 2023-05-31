@@ -12,7 +12,7 @@ metadata:
   name: replicaprofile-viewer-role
 rules:
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles
   verbs:
@@ -20,7 +20,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles/status
   verbs:

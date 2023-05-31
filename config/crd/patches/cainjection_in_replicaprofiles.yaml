@@ -4,4 +4,4 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
-  name: replicaprofiles.autoscaling.kapacity.traas.io
+  name: replicaprofiles.autoscaling.kapacitystack.io

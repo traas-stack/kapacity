@@ -2,9 +2,9 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/autoscaling.kapacity.traas.io_replicaprofiles.yaml
-- bases/autoscaling.kapacity.traas.io_intelligenthorizontalpodautoscalers.yaml
-- bases/autoscaling.kapacity.traas.io_horizontalportraits.yaml
+- bases/autoscaling.kapacitystack.io_replicaprofiles.yaml
+- bases/autoscaling.kapacitystack.io_intelligenthorizontalpodautoscalers.yaml
+- bases/autoscaling.kapacitystack.io_horizontalportraits.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

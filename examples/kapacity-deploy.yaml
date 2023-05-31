@@ -17,9 +17,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: horizontalportraits.autoscaling.kapacity.traas.io
+  name: horizontalportraits.autoscaling.kapacitystack.io
 spec:
-  group: autoscaling.kapacity.traas.io
+  group: autoscaling.kapacitystack.io
   names:
     kind: HorizontalPortrait
     listKind: HorizontalPortraitList
@@ -600,9 +600,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: intelligenthorizontalpodautoscalers.autoscaling.kapacity.traas.io
+  name: intelligenthorizontalpodautoscalers.autoscaling.kapacitystack.io
 spec:
-  group: autoscaling.kapacity.traas.io
+  group: autoscaling.kapacitystack.io
   names:
     kind: IntelligentHorizontalPodAutoscaler
     listKind: IntelligentHorizontalPodAutoscalerList
@@ -1767,9 +1767,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: replicaprofiles.autoscaling.kapacity.traas.io
+  name: replicaprofiles.autoscaling.kapacitystack.io
 spec:
-  group: autoscaling.kapacity.traas.io
+  group: autoscaling.kapacitystack.io
   names:
     kind: ReplicaProfile
     listKind: ReplicaProfileList
@@ -2064,7 +2064,7 @@ rules:
   - get
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits
   verbs:
@@ -2076,13 +2076,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits/finalizers
   verbs:
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - horizontalportraits/status
   verbs:
@@ -2090,7 +2090,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - intelligenthorizontalpodautoscalers
   verbs:
@@ -2102,13 +2102,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - intelligenthorizontalpodautoscalers/finalizers
   verbs:
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - intelligenthorizontalpodautoscalers/status
   verbs:
@@ -2116,7 +2116,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles
   verbs:
@@ -2128,13 +2128,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles/finalizers
   verbs:
   - update
 - apiGroups:
-  - autoscaling.kapacity.traas.io
+  - autoscaling.kapacitystack.io
   resources:
   - replicaprofiles/status
   verbs:

@@ -17,5 +17,5 @@
 package controllers
 
 const (
-	Finalizer = "kapacity.traas.io/finalizer"
+	Finalizer = "kapacitystack.io/finalizer"
 )

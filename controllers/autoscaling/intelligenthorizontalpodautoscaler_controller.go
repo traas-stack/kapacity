@@ -81,12 +81,12 @@ const (
 	maxCap
 )
 
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=intelligenthorizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=intelligenthorizontalpodautoscalers/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=intelligenthorizontalpodautoscalers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=intelligenthorizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=intelligenthorizontalpodautoscalers/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=intelligenthorizontalpodautoscalers/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=replicaprofiles,verbs=get;list;watch;create;patch
-//+kubebuilder:rbac:groups=autoscaling.kapacity.traas.io,resources=horizontalportraits,verbs=get;list;watch;create;patch;delete
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=replicaprofiles,verbs=get;list;watch;create;patch
+//+kubebuilder:rbac:groups=autoscaling.kapacitystack.io,resources=horizontalportraits,verbs=get;list;watch;create;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
