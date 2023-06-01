@@ -1,0 +1,45 @@
+name: CI
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  lint:
+    name: pull-kapacity-golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.19"
+          cache: false
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          only-new-issues: true
+  # TODO(zqzten): add verify job
+  test:
+    name: pull-kapacity-unit-test
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.19"
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Git config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Rebase code
+        run: git rebase origin/main
+      - name: Run unit tests
+        run: make unit-test
