@@ -96,8 +96,9 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
-	flag.StringVar(&metricProviderType, "metric-provider", "prometheus", "todo")
-	flag.StringVar(&promAddress, "prometheus-address", "", "todo")
+	flag.StringVar(&metricProviderType, "metric-provider", "prometheus",
+		"The name of metric provider. Valid options are prometheus or metrics-api. Defaults to prometheus.")
+	flag.StringVar(&promAddress, "prometheus-address", "", "The address of the Prometheus to connect to.")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
