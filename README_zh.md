@@ -5,6 +5,8 @@
 ![GoVersion](https://img.shields.io/github/go-mod/go-version/traas-stack/kapacity)
 [![Go Report Card](https://goreportcard.com/badge/github.com/traas-stack/kapacity)](https://goreportcard.com/report/github.com/traas-stack/kapacity)
 
+<a href="https://kapacity.netlify.app/zh-cn/"><img src="logo/logo.svg" alt="logo" width="100"></a>
+
 > [English](README.md) | 中文
 
 ---
