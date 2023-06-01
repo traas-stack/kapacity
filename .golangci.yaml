@@ -1,0 +1,34 @@
+run:
+  # Timeout for analysis, e.g. 30s, 5m.
+  # Default: 1m
+  timeout: 10m
+
+linters:
+  # Disable all linters.
+  # Default: false
+  disable-all: true
+  # Enable specific linter
+  # https://golangci-lint.run/usage/linters/
+  enable:
+    - errcheck
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - importas
+    - ineffassign
+    - loggercheck
+    - misspell
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unused
+    - usestdlibvars
+
+linters-settings:
+  goimports:
+    # A comma-separated list of prefixes, which, if set, checks import paths
+    # with the given prefixes are grouped after 3rd-party packages.
+    # Default: ""
+    local-prefixes: github.com/traas-stack/kapacity
