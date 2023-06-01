@@ -46,16 +46,16 @@ func TestOn(t *testing.T) {
 	}
 	// create pod
 	for _, pod := range pods {
-		assert.Nil(t, fakeClient.Create(context.TODO(), pod))
+		assert.Nil(t, fakeClient.Create(context.Background(), pod))
 	}
 	defer cleanPods(fakeClient, pods)
 
-	err := readinessGate.On(context.TODO(), pods)
+	err := readinessGate.On(context.Background(), pods)
 	assert.Nil(t, err)
 
 	podList := &corev1.PodList{}
 	ls, _ := labels.Parse("foo=bar")
-	assert.Nil(t, fakeClient.List(context.TODO(), podList, &client.ListOptions{LabelSelector: ls}))
+	assert.Nil(t, fakeClient.List(context.Background(), podList, &client.ListOptions{LabelSelector: ls}))
 
 	for _, pod := range podList.Items {
 		assert.NotNil(t, pod.Status, "pod status should not nil for %s", pod.Name)
@@ -83,16 +83,16 @@ func TestOff(t *testing.T) {
 
 	// create pod
 	for _, pod := range pods {
-		assert.Nil(t, fakeClient.Create(context.TODO(), pod))
+		assert.Nil(t, fakeClient.Create(context.Background(), pod))
 	}
 	defer cleanPods(fakeClient, pods)
 
-	err := readinessGate.Off(context.TODO(), pods)
+	err := readinessGate.Off(context.Background(), pods)
 	assert.Nil(t, err)
 
 	podList := &corev1.PodList{}
 	ls, _ := labels.Parse("foo=bar")
-	assert.Nil(t, fakeClient.List(context.TODO(), podList, &client.ListOptions{LabelSelector: ls}))
+	assert.Nil(t, fakeClient.List(context.Background(), podList, &client.ListOptions{LabelSelector: ls}))
 
 	for _, pod := range podList.Items {
 		assert.NotNil(t, pod.Status, "pod status should not nil for %s", pod.Name)
@@ -113,6 +113,6 @@ func hasExpectedTraffic(conditions []corev1.PodCondition, expectedStatus corev1.
 
 func cleanPods(c client.Client, pods []*corev1.Pod) {
 	for _, pod := range pods {
-		_ = c.Delete(context.TODO(), pod)
+		_ = c.Delete(context.Background(), pod)
 	}
 }

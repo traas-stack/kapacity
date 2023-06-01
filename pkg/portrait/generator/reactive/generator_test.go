@@ -84,7 +84,7 @@ func TestGenerateHorizontal(t *testing.T) {
 		portraitGenerator := NewPortraitGenerator(fakeClient, fakeMetricProvider, fakeScaler)
 		assert.NotNil(t, portraitGenerator)
 
-		portraitData, _, _ := portraitGenerator.GenerateHorizontal(context.TODO(), testNamespace, scaleTargetRef, metricSpecs, algorithm)
+		portraitData, _, _ := portraitGenerator.GenerateHorizontal(context.Background(), testNamespace, scaleTargetRef, metricSpecs, algorithm)
 		assert.NotNil(t, portraitData)
 		assert.NotNil(t, portraitData.Static)
 		assert.Equal(t, testCase.targetReplicas, portraitData.Static.Replicas)

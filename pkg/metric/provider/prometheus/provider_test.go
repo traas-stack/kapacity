@@ -196,7 +196,7 @@ func TestQuery(t *testing.T) {
 	})).WithObjects().Build()
 	for _, testCase := range testCases {
 		fakeMetricClient := newFakeMetricProvider(fakeClient, testCase.timeSeries)
-		series, err := fakeMetricClient.Query(context.TODO(), testCase.query, testCase.start, testCase.end, time.Minute)
+		series, err := fakeMetricClient.Query(context.Background(), testCase.query, testCase.start, testCase.end, time.Minute)
 
 		assert.Nil(t, err, "failed to query by prometheus for %v", testCase.query)
 		assert.NotNil(t, series)
@@ -237,7 +237,7 @@ func TestQueryLatest(t *testing.T) {
 	})).WithObjects().Build()
 	for _, testCase := range testCases {
 		fakeMetricClient := newFakeMetricProvider(fakeClient, testCase.timeSeries)
-		samples, err := fakeMetricClient.QueryLatest(context.TODO(), testCase.query)
+		samples, err := fakeMetricClient.QueryLatest(context.Background(), testCase.query)
 
 		assert.Nil(t, err, "failed to query latest by prometheus for %v", testCase.query)
 		assert.NotNil(t, samples)

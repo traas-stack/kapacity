@@ -44,7 +44,7 @@ func TestGetResourceMetric_UnsupportedResource(t *testing.T) {
 	metricsClient := metricsClient{}
 
 	selector, _ := labels.Parse("foo=bar")
-	_, err := metricsClient.GetResourceMetric(context.TODO(), corev1.ResourceStorage, testNamespace, selector, "test-container")
+	_, err := metricsClient.GetResourceMetric(context.Background(), corev1.ResourceStorage, testNamespace, selector, "test-container")
 	assert.NotNil(t, err, "unsupported resource for %s", corev1.ResourceStorage)
 }
 
@@ -69,7 +69,7 @@ func TestGetResourceMetric(t *testing.T) {
 
 		selector, _ := labels.Parse("name=test-pod")
 		// pod resources
-		podMetrics, err := metricsClient.GetResourceMetric(context.TODO(), testCase.resourceName, testNamespace, selector, "")
+		podMetrics, err := metricsClient.GetResourceMetric(context.Background(), testCase.resourceName, testNamespace, selector, "")
 		assert.Nil(t, err)
 
 		for podName, resValues := range testCase.podMetricsMap {
@@ -79,7 +79,7 @@ func TestGetResourceMetric(t *testing.T) {
 
 				// container resources
 				containerName := buildContainerName(podName, index+1)
-				containerMetrics, err := metricsClient.GetResourceMetric(context.TODO(), testCase.resourceName, testNamespace, selector, containerName)
+				containerMetrics, err := metricsClient.GetResourceMetric(context.Background(), testCase.resourceName, testNamespace, selector, containerName)
 				assert.Nil(t, err, "failed to get resource metrics")
 				assert.NotNil(t, containerMetrics, "container metrics not found for %s", containerName)
 				assert.Equal(t, containerValue, containerMetrics[podName].Value, "container metrics not expected for %s", containerName)

@@ -252,7 +252,7 @@ func TestCalculateStateChange(t *testing.T) {
 		statefulSet := &workload.StatefulSet{}
 		stateManager := NewStateManager(testCase.rp, statefulSet, currentPodMap)
 
-		stateChange, err := stateManager.CalculateStateChange(context.TODO())
+		stateChange, err := stateManager.CalculateStateChange(context.Background())
 		assert.Nil(t, err)
 		assert.Equal(t, testCase.toOnlinePodNum, len(stateChange.Online), "to online pod num is error for %s", testCase.name)
 		assert.Equal(t, testCase.toCutoffPodNum, len(stateChange.Cutoff), "to cutoff pod num is error for %s", testCase.name)

@@ -108,7 +108,7 @@ func TestQueryLatest(t *testing.T) {
 		fakeMetricsClient := prepareFakeMetricsClient(testPod, testCase.resourceName, testCase.timeMetrics)
 		metricsProvider := NewMetricProvider(fakeMetricsClient.MetricsV1beta1())
 
-		samples, err := metricsProvider.QueryLatest(context.TODO(), testCase.query)
+		samples, err := metricsProvider.QueryLatest(context.Background(), testCase.query)
 		assert.Nil(t, err, "failed to query latest metrics")
 		for _, sample := range samples {
 			assert.Equal(t, testCase.timeResultMap[sample.Timestamp.Unix()], sample.Value, "unexpected result")
@@ -140,7 +140,7 @@ func TestQuery(t *testing.T) {
 		fakeMetricsClient := prepareFakeMetricsClient(testPod, testCase.resourceName, testCase.timeMetrics)
 		metricsProvider := NewMetricProvider(fakeMetricsClient.MetricsV1beta1())
 
-		timeSeries, err := metricsProvider.Query(context.TODO(), testCase.query, startTime, endTime, timeStepInMinute)
+		timeSeries, err := metricsProvider.Query(context.Background(), testCase.query, startTime, endTime, timeStepInMinute)
 
 		assert.NotNil(t, err, "MetricsAPI does not support query operation")
 		assert.Nil(t, timeSeries, "MetricsAPI does not support query operation")
