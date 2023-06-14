@@ -19,6 +19,7 @@ package reactive
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -72,7 +73,7 @@ func (g *PortraitGenerator) GenerateHorizontal(ctx context.Context, namespace st
 	cfg := algorithm.KubeHPA
 	if cfg != nil {
 		syncPeriod = cfg.SyncPeriod.Duration
-		tolerance, err = cfg.Tolerance.Float64()
+		tolerance, err = strconv.ParseFloat(cfg.Tolerance, 64)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to parse tolerance of KubeHPA algorithm to float64: %v", err)
 		}
