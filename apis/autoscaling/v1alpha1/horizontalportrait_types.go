@@ -17,8 +17,6 @@
 package v1alpha1
 
 import (
-	"encoding/json"
-
 	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -142,7 +140,7 @@ type KubeHPAPortraitAlgorithm struct {
 	// Should be a string formatted float64 number.
 	// +optional
 	// +kubebuilder:default="0.1"
-	Tolerance json.Number `json:"tolerance"`
+	Tolerance string `json:"tolerance"`
 
 	// CPUInitializationPeriod is the period after pod start when CPU samples might be skipped.
 	// +optional
