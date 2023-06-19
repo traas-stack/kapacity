@@ -18,6 +18,7 @@ Optionally add one or more of the following kinds if applicable:
 /kind api-change
 /kind deprecation
 /kind dependencies
+/kind algorithm
 -->
 
 #### What this PR does / why we need it:
