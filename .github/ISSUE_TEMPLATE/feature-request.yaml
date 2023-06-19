@@ -1,5 +1,5 @@
 name: Feature Request
-description: Provide supporting details for a feature that wanted
+description: Provide supporting details for a feature that wanted.
 labels: kind/feature
 body:
   - type: textarea
