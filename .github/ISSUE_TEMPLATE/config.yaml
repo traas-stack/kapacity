@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support Questions
+    url: https://github.com/traas-stack/kapacity/discussions/new/choose
+    about: Need support or have some general questions? You can ask in GitHub Discussions.
