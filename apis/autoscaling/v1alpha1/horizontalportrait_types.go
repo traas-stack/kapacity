@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -111,6 +112,10 @@ type PortraitAlgorithm struct {
 	// Type is the type of algorithm.
 	Type PortraitAlgorithmType `json:"type"`
 
+	// ExternalJob is the configuration for ExternalJob algorithm.
+	// +optional
+	ExternalJob *ExternalJobPortraitAlgorithm `json:"externalJob,omitempty"`
+
 	// KubeHPA is the configuration for KubeHPA algorithm.
 	// +optional
 	KubeHPA *KubeHPAPortraitAlgorithm `json:"kubeHPA,omitempty"`
@@ -125,6 +130,9 @@ type PortraitAlgorithm struct {
 type PortraitAlgorithmType string
 
 const (
+	// ExternalJobPortraitAlgorithmType is algorithm that runs as an external job.
+	ExternalJobPortraitAlgorithmType PortraitAlgorithmType = "ExternalJob"
+
 	// KubeHPAPortraitAlgorithmType is the Kubernetes HPA algorithm.
 	KubeHPAPortraitAlgorithmType PortraitAlgorithmType = "KubeHPA"
 )
@@ -154,6 +162,69 @@ type KubeHPAPortraitAlgorithm struct {
 	// +kubebuilder:default="30s"
 	InitialReadinessDelay metav1.Duration `json:"initialReadinessDelay"`
 }
+
+// ExternalJobPortraitAlgorithm defines configurations of ExternalJob algorithm.
+type ExternalJobPortraitAlgorithm struct {
+	// Job is the external job that runs the algorithm.
+	Job PortraitAlgorithmJob `json:"job"`
+
+	// ResultSource is the source from where to fetch the result of the algorithm.
+	ResultSource PortraitAlgorithmResultSource `json:"resultSource"`
+}
+
+// PortraitAlgorithmJob represents the configuration for a specific type of external algorithm job.
+type PortraitAlgorithmJob struct {
+	// Type is the type of job.
+	Type PortraitAlgorithmJobType `json:"type"`
+
+	// CronJob is the configuration for CronJob job.
+	// +optional
+	CronJob *CronJobPortraitAlgorithmJob `json:"cronJob,omitempty"`
+}
+
+type PortraitAlgorithmJobType string
+
+const (
+	// CronJobPortraitAlgorithmJobType runs algorithm by a Kubernetes CronJob.
+	CronJobPortraitAlgorithmJobType PortraitAlgorithmJobType = "CronJob"
+)
+
+// CronJobPortraitAlgorithmJob defines configurations of CronJob job.
+type CronJobPortraitAlgorithmJob struct {
+	// Template is the template of the Kubernetes CronJob that runs algorithm.
+	Template CronJobTemplateSpec `json:"template"`
+}
+
+// CronJobTemplateSpec describes the data a Kubernetes CronJob should have when created from a template.
+type CronJobTemplateSpec struct {
+	// ObjectMeta is standard object's metadata of the CronJob.
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec is specification of the desired behavior of the CronJob.
+	// +optional
+	Spec batchv1.CronJobSpec `json:"spec,omitempty"`
+}
+
+// PortraitAlgorithmResultSource represents the configuration for a specific type of result source of external algorithm job.
+type PortraitAlgorithmResultSource struct {
+	// Type is the type of result source.
+	Type PortraitAlgorithmResultSourceType `json:"type"`
+
+	// ConfigMap is the configuration for ConfigMap result source.
+	// +optional
+	ConfigMap *ConfigMapPortraitAlgorithmResultSource `json:"configMap,omitempty"`
+}
+
+type PortraitAlgorithmResultSourceType string
+
+const (
+	// ConfigMapPortraitAlgorithmResultSourceType means that the result source is a Kubernetes ConfigMap.
+	ConfigMapPortraitAlgorithmResultSourceType PortraitAlgorithmResultSourceType = "ConfigMap"
+)
+
+// ConfigMapPortraitAlgorithmResultSource defines configurations of ConfigMap result source.
+type ConfigMapPortraitAlgorithmResultSource struct{}
 
 // HorizontalPortraitStatus defines the observed state of HorizontalPortrait.
 type HorizontalPortraitStatus struct {
