@@ -52,6 +52,8 @@ import (
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/prometheus"
+	"github.com/traas-stack/kapacity/pkg/portrait/algorithm/externaljob/jobcontroller"
+	"github.com/traas-stack/kapacity/pkg/portrait/algorithm/externaljob/resultfetcher"
 	portraitgenerator "github.com/traas-stack/kapacity/pkg/portrait/generator"
 	"github.com/traas-stack/kapacity/pkg/portrait/generator/reactive"
 	portraitprovider "github.com/traas-stack/kapacity/pkg/portrait/provider"
@@ -180,6 +182,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	externalHorizontalPortraitAlgorithmJobResultFetchers := initExternalHorizontalPortraitAlgorithmJobResultFetchers()
+
 	if err := (&autoscaling.ReplicaProfileReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
@@ -200,10 +204,12 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&autoscaling.HorizontalPortraitReconciler{
-		Client:             mgr.GetClient(),
-		Scheme:             mgr.GetScheme(),
-		EventRecorder:      mgr.GetEventRecorderFor(autoscaling.HorizontalPortraitControllerName),
-		PortraitGenerators: initHorizontalPortraitGenerators(mgr.GetClient(), metricProvider, scaler),
+		Client:                             mgr.GetClient(),
+		Scheme:                             mgr.GetScheme(),
+		EventRecorder:                      mgr.GetEventRecorderFor(autoscaling.HorizontalPortraitControllerName),
+		PortraitGenerators:                 initPortraitGenerators(mgr.GetClient(), metricProvider, scaler),
+		ExternalAlgorithmJobControllers:    initExternalHorizontalPortraitAlgorithmJobControllers(),
+		ExternalAlgorithmJobResultFetchers: externalHorizontalPortraitAlgorithmJobResultFetchers,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HorizontalPortrait")
 		os.Exit(1)
@@ -217,6 +223,14 @@ func main() {
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
+	}
+
+	for sourceType, fetcher := range externalHorizontalPortraitAlgorithmJobResultFetchers {
+		if err := mgr.Add(fetcher); err != nil {
+			setupLog.Error(err, "failed to add external horizontal portrait algorithm job result fetcher to manager",
+				"sourceType", sourceType)
+			os.Exit(1)
+		}
 	}
 
 	setupLog.Info("starting manager")
@@ -257,8 +271,20 @@ func initHorizontalPortraitProviders(client client.Client, eventTrigger chan eve
 	return providers
 }
 
-func initHorizontalPortraitGenerators(client client.Client, metricProvider metricprovider.Interface, scaler *scale.Scaler) map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface {
+func initPortraitGenerators(client client.Client, metricProvider metricprovider.Interface, scaler *scale.Scaler) map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface {
 	generators := make(map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface)
 	generators[autoscalingv1alpha1.ReactivePortraitType] = reactive.NewPortraitGenerator(client, metricProvider, scaler)
 	return generators
+}
+
+func initExternalHorizontalPortraitAlgorithmJobControllers() map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal {
+	controllers := make(map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal)
+	// TODO
+	return controllers
+}
+
+func initExternalHorizontalPortraitAlgorithmJobResultFetchers() map[autoscalingv1alpha1.PortraitAlgorithmResultSourceType]resultfetcher.Horizontal {
+	fetchers := make(map[autoscalingv1alpha1.PortraitAlgorithmResultSourceType]resultfetcher.Horizontal)
+	// TODO
+	return fetchers
 }
