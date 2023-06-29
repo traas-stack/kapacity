@@ -85,14 +85,15 @@ func ParseGVK(apiVersion, kind string) (schema.GroupVersionKind, error) {
 	return gv.WithKind(kind), nil
 }
 
-// BuildControllerOwnerRef builds a controller owner reference to the given Kubernetes object.
-func BuildControllerOwnerRef(obj client.Object) metav1.OwnerReference {
-	return metav1.OwnerReference{
-		APIVersion: obj.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-		Kind:       obj.GetObjectKind().GroupVersionKind().Kind,
-		Name:       obj.GetName(),
-		UID:        obj.GetUID(),
-		Controller: pointer.Bool(true),
+// NewControllerRef creates a controller owner reference pointing to the given owner.
+func NewControllerRef(obj client.Object) *metav1.OwnerReference {
+	return &metav1.OwnerReference{
+		APIVersion:         obj.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+		Kind:               obj.GetObjectKind().GroupVersionKind().Kind,
+		Name:               obj.GetName(),
+		UID:                obj.GetUID(),
+		Controller:         pointer.Bool(true),
+		BlockOwnerDeletion: pointer.Bool(true),
 	}
 }
 

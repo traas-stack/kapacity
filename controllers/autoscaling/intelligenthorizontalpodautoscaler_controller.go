@@ -313,7 +313,7 @@ func newReplicaProfile(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutosca
 			Namespace: ihpa.Namespace,
 			Name:      ihpa.Name,
 			OwnerReferences: []metav1.OwnerReference{
-				util.BuildControllerOwnerRef(ihpa),
+				*util.NewControllerRef(ihpa),
 			},
 		},
 		Spec: autoscalingv1alpha1.ReplicaProfileSpec{
