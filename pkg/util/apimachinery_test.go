@@ -83,12 +83,14 @@ func TestParseGVK(t *testing.T) {
 	assert.Equal(t, horizontalPortrait.GroupVersionKind(), groupVersion)
 }
 
-func TestBuildControllerOwnerRef(t *testing.T) {
-	ownerRef := BuildControllerOwnerRef(horizontalPortrait)
-	assert.Equal(t, horizontalPortrait.GroupVersionKind().Kind, ownerRef.Kind)
+func TestNewControllerRef(t *testing.T) {
+	ownerRef := NewControllerRef(horizontalPortrait)
 	assert.Equal(t, horizontalPortrait.APIVersion, ownerRef.APIVersion)
-	assert.Equal(t, horizontalPortrait.ObjectMeta.Name, ownerRef.Name)
-	assert.Equal(t, horizontalPortrait.ObjectMeta.UID, ownerRef.UID)
+	assert.Equal(t, horizontalPortrait.Kind, ownerRef.Kind)
+	assert.Equal(t, horizontalPortrait.Name, ownerRef.Name)
+	assert.Equal(t, horizontalPortrait.UID, ownerRef.UID)
+	assert.Equal(t, true, *ownerRef.Controller)
+	assert.Equal(t, true, *ownerRef.BlockOwnerDeletion)
 }
 
 func TestParseScaleSelector(t *testing.T) {

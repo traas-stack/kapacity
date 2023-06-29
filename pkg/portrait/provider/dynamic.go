@@ -72,7 +72,7 @@ func (h *DynamicHorizontal) UpdatePortraitSpec(ctx context.Context, ihpa *autosc
 					Namespace: hpNamespacedName.Namespace,
 					Name:      hpNamespacedName.Name,
 					OwnerReferences: []metav1.OwnerReference{
-						util.BuildControllerOwnerRef(ihpa),
+						*util.NewControllerRef(ihpa),
 					},
 				},
 				Spec: hpSpec,
