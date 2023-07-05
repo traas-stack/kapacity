@@ -19,3 +19,26 @@ package util
 const (
 	UserAgent = "kapacity-manager"
 )
+
+// IsMapValueChanged compares two maps' values key by key, if any value in oldValues map differs
+// from the one in newValues map, it returns true, otherwise returns false.
+func IsMapValueChanged(oldValues, newValues map[string]string) bool {
+	if len(newValues) == 0 {
+		return false
+	}
+
+	for k, newV := range newValues {
+		if oldV, ok := oldValues[k]; !ok || oldV != newV {
+			return true
+		}
+	}
+
+	return false
+}
+
+// CopyMapValues copies all the values from src map to dst map, overwriting any existing one.
+func CopyMapValues(dst, src map[string]string) {
+	for k, v := range src {
+		dst[k] = v
+	}
+}
