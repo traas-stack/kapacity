@@ -19,6 +19,7 @@ package util
 import (
 	"testing"
 
+	prommodel "github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -44,5 +45,14 @@ func TestCopyMapValues(t *testing.T) {
 	CopyMapValues(dst, src)
 	for k, v := range src {
 		assert.Equal(t, v, dst[k])
+	}
+}
+
+func TestConvertPromLabelSetToMap(t *testing.T) {
+	in := map[prommodel.LabelName]prommodel.LabelValue{"key_1": "a", "key_2": "b"}
+	out := ConvertPromLabelSetToMap(in)
+	assert.Equal(t, len(in), len(out))
+	for k, v := range out {
+		assert.Equal(t, v, string(in[prommodel.LabelName(k)]))
 	}
 }

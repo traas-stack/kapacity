@@ -16,6 +16,10 @@
 
 package util
 
+import (
+	prommodel "github.com/prometheus/common/model"
+)
+
 const (
 	UserAgent = "kapacity-manager"
 )
@@ -41,4 +45,12 @@ func CopyMapValues(dst, src map[string]string) {
 	for k, v := range src {
 		dst[k] = v
 	}
+}
+
+func ConvertPromLabelSetToMap(in prommodel.LabelSet) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[string(k)] = string(v)
+	}
+	return out
 }

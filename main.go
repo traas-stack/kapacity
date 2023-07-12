@@ -56,6 +56,7 @@ import (
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/prometheus"
+	metricservice "github.com/traas-stack/kapacity/pkg/metric/service"
 	"github.com/traas-stack/kapacity/pkg/portrait/algorithm/externaljob/jobcontroller"
 	"github.com/traas-stack/kapacity/pkg/portrait/algorithm/externaljob/resultfetcher"
 	portraitgenerator "github.com/traas-stack/kapacity/pkg/portrait/generator"
@@ -274,6 +275,8 @@ func main() {
 
 	if grpcServerAddr != "" && grpcServerAddr != "0" {
 		server := internalgrpc.NewServer(grpcServerAddr)
+		metricProviderServer := metricservice.NewProviderServer(metricProvider)
+		metricProviderServer.RegisterTo(server.ServiceRegistrar())
 		if err := mgr.Add(server); err != nil {
 			setupLog.Error(err, "unable to set up gRPC server")
 			os.Exit(1)
