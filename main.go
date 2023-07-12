@@ -52,6 +52,7 @@ import (
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/prometheus"
+	metricserver "github.com/traas-stack/kapacity/pkg/metric/server"
 	"github.com/traas-stack/kapacity/pkg/portrait/algorithm/externaljob/jobcontroller"
 	"github.com/traas-stack/kapacity/pkg/portrait/algorithm/externaljob/resultfetcher"
 	portraitgenerator "github.com/traas-stack/kapacity/pkg/portrait/generator"
@@ -86,6 +87,7 @@ func main() {
 		reconcileConcurrency int
 
 		metricProviderType string
+		metricServerAddr   string
 		promAddress        string
 	)
 	flag.StringVar(&logPath, "log-path", "", "The path to write log files. Omit to disable logging to file.")
@@ -94,6 +96,7 @@ func main() {
 	// TODO(zqzten): use component config to replace below flags
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&metricServerAddr, "metrics-server-bind-address", ":8082", "The address the gRPRC Metrics Service endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -179,6 +182,12 @@ func main() {
 	metricProvider, err := newMetricProviderFromConfig(metricProviderType, cfg, mgr.GetClient(), promAddress)
 	if err != nil {
 		setupLog.Error(err, "unable to build metric provider")
+		os.Exit(1)
+	}
+
+	metricServer := metricserver.NewMetricsServiceServer(metricServerAddr, metricProvider)
+	if err := mgr.Add(metricServer); err != nil {
+		setupLog.Error(err, "unable to set up Metrics Service gRPC server")
 		os.Exit(1)
 	}
 
