@@ -19,22 +19,72 @@ package prometheus
 import (
 	"context"
 	"testing"
-	"text/template"
 	"time"
 
 	promapiv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	prommodel "github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	promadaptercfg "sigs.k8s.io/prometheus-adapter/pkg/config"
 
 	"github.com/traas-stack/kapacity/pkg/metric"
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 )
+
+var (
+	scheme     = runtime.NewScheme()
+	fakeClient = fake.NewClientBuilder().
+			WithRESTMapper(fakeRestMapper()).
+			WithObjects(preparePod(types.NamespacedName{
+			Namespace: "testNamespace",
+			Name:      "testPod",
+		})).Build()
+	fakeDynamicClient = dynamicfake.NewSimpleDynamicClient(scheme)
+	metricsConfig     = &MetricsDiscoveryConfig{
+		MetricsDiscoveryConfig: promadaptercfg.MetricsDiscoveryConfig{
+			ResourceRules: &promadaptercfg.ResourceRules{
+				CPU: promadaptercfg.ResourceRule{
+					ContainerQuery: `sum by (<<.GroupBy>>) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m]))`,
+					Resources: promadaptercfg.ResourceMapping{
+						Overrides: map[string]promadaptercfg.GroupResource{
+							"namespace": {Resource: "namespace"},
+							"pod":       {Resource: "pod"},
+						},
+					},
+					ContainerLabel: "container",
+				},
+				Memory: promadaptercfg.ResourceRule{
+					ContainerQuery: `sum by (<<.GroupBy>>) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>})`,
+					Resources: promadaptercfg.ResourceMapping{
+						Overrides: map[string]promadaptercfg.GroupResource{
+							"namespace": {Resource: "namespace"},
+							"pod":       {Resource: "pod"},
+						},
+					},
+					ContainerLabel: "container",
+				},
+				Window: prommodel.Duration(3 * time.Minute),
+			},
+		},
+	}
+)
+
+func fakeRestMapper() apimeta.RESTMapper {
+	mapper := apimeta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
+	mapper.Add(corev1.SchemeGroupVersion.WithKind("Namespace"), apimeta.RESTScopeRoot)
+	mapper.Add(corev1.SchemeGroupVersion.WithKind("Pod"), apimeta.RESTScopeNamespace)
+	return mapper
+}
 
 type fakePromAPI struct {
 	timeSeries map[int64]float64
@@ -190,14 +240,13 @@ func TestQuery(t *testing.T) {
 		},
 	}
 
-	fakeClient := fake.NewClientBuilder().WithObjects(preparePod(types.NamespacedName{
-		Namespace: "testNamespace",
-		Name:      "testPod",
-	})).WithObjects().Build()
 	for _, testCase := range testCases {
-		fakeMetricClient := newFakeMetricProvider(fakeClient, testCase.timeSeries)
-		series, err := fakeMetricClient.Query(context.Background(), testCase.query, testCase.start, testCase.end, time.Minute)
+		fakeMetricProvider, err := newFakeMetricProvider(fakeClient, fakeDynamicClient, metricsConfig, testCase.timeSeries)
+		if err != nil {
+			t.Fatalf("failed to new fake prometheus metric provider: %v", err)
+		}
 
+		series, err := fakeMetricProvider.Query(context.Background(), testCase.query, testCase.start, testCase.end, time.Minute)
 		assert.Nil(t, err, "failed to query by prometheus for %v", testCase.query)
 		assert.NotNil(t, series)
 		for _, s := range series {
@@ -231,14 +280,13 @@ func TestQueryLatest(t *testing.T) {
 		},
 	}
 
-	fakeClient := fake.NewClientBuilder().WithObjects(preparePod(types.NamespacedName{
-		Namespace: "testNamespace",
-		Name:      "testPod",
-	})).WithObjects().Build()
 	for _, testCase := range testCases {
-		fakeMetricClient := newFakeMetricProvider(fakeClient, testCase.timeSeries)
-		samples, err := fakeMetricClient.QueryLatest(context.Background(), testCase.query)
+		fakeMetricProvider, err := newFakeMetricProvider(fakeClient, fakeDynamicClient, metricsConfig, testCase.timeSeries)
+		if err != nil {
+			t.Fatalf("failed to new fake prometheus metric provider: %v", err)
+		}
 
+		samples, err := fakeMetricProvider.QueryLatest(context.Background(), testCase.query)
 		assert.Nil(t, err, "failed to query latest by prometheus for %v", testCase.query)
 		assert.NotNil(t, samples)
 		for _, s := range samples {
@@ -268,25 +316,14 @@ func preparePod(name types.NamespacedName) *corev1.Pod {
 	}
 }
 
-func newFakeMetricProvider(client client.Client, timeSeries map[int64]float64) metricprovider.Interface {
-	fakePromAPI := newFakePromAPI(timeSeries, nil, nil)
-	podCPUUsageQueryTemplate, _ := template.New("pod-cpu-usage-query").Delims("<<", ">>").Parse(defaultPodCPUUsageQueryTemplate)
-	containerCPUUsageQueryTemplate, _ := template.New("container-cpu-usage-query").Delims("<<", ">>").Parse(defaultContainerCPUUsageQueryTemplate)
-	workloadCPUUsageQueryTemplate, _ := template.New("workload-cpu-usage-query").Delims("<<", ">>").Parse(defaultWorkloadCPUUsageQueryTemplate)
-	return &MetricProvider{
-		client:  client,
-		promAPI: fakePromAPI,
-		window:  time.Minute,
-		podResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU: podCPUUsageQueryTemplate,
-		},
-		containerResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU: containerCPUUsageQueryTemplate,
-		},
-		workloadResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU: workloadCPUUsageQueryTemplate,
-		},
+func newFakeMetricProvider(client client.Client, dynamicClient dynamic.Interface, metricsConfig *MetricsDiscoveryConfig, timeSeries map[int64]float64) (metricprovider.Interface, error) {
+	p, err := NewMetricProvider(client, dynamicClient, nil, metricsConfig, 0, 0)
+	if err != nil {
+		return nil, err
 	}
+	pp := p.(*MetricProvider)
+	pp.promAPI = newFakePromAPI(timeSeries, nil, nil)
+	return pp, nil
 }
 
 func buildTimeSeries(start time.Time, stepInSecond int, values []float64) map[int64]float64 {

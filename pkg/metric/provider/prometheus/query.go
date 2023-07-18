@@ -19,113 +19,147 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"text/template"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	cmaprovider "sigs.k8s.io/custom-metrics-apiserver/pkg/provider"
+	"sigs.k8s.io/custom-metrics-apiserver/pkg/provider/helpers"
 
 	"github.com/traas-stack/kapacity/pkg/metric"
-	"github.com/traas-stack/kapacity/pkg/util"
 )
 
-const (
-	defaultPodCPUUsageQueryTemplate = `sum by (namespace, pod) (irate(container_cpu_usage_seconds_total{namespace="<<.Namespace>>",pod="<<.PodName>>",container!="",container!="POD"}[<<.Window>>]))`
-	defaultPodMemUsageQueryTemplate = `sum by (namespace, pod) (container_memory_working_set_bytes{namespace="<<.Namespace>>",pod="<<.PodName>>",container!="",container!="POD"})`
-
-	defaultContainerCPUUsageQueryTemplate = `irate(container_cpu_usage_seconds_total{namespace="<<.Namespace>>",pod="<<.PodName>>",container="<<.ContainerName>>"}[<<.Window>>])`
-	defaultContainerMemUsageQueryTemplate = `container_memory_working_set_bytes{namespace="<<.Namespace>>",pod="<<.PodName>>",container="<<.ContainerName>>"}`
-
-	defaultWorkloadCPUUsageQueryTemplate = `sum by (namespace) (irate(container_cpu_usage_seconds_total{namespace="<<.Namespace>>",pod=~"<<.PodNameRegex>>",container!="",container!="POD"}[<<.Window>>]))`
-	defaultWorkloadMemUsageQueryTemplate = `sum by (namespace) (container_memory_working_set_bytes{namespace="<<.Namespace>>",pod=~"<<.PodNameRegex>>",container!="",container!="POD"})`
-)
-
-type queryTemplateArgs struct {
-	Window        time.Duration
-	Namespace     string
-	PodName       string
-	PodNameRegex  string
-	ContainerName string
-}
-
-func (p *MetricProvider) buildPromQueries(ctx context.Context, query *metric.Query) ([]string, error) {
+func (p *MetricProvider) buildPromQuery(ctx context.Context, query *metric.Query) (string, *time.Duration, error) {
 	switch query.Type {
 	case metric.PodResourceQueryType:
-		return p.buildPodOrContainerResourcePromQueries(ctx, query.PodResource, "")
+		return p.buildPodResourcePromQuery(ctx, query.PodResource, "")
 	case metric.ContainerResourceQueryType:
-		return p.buildPodOrContainerResourcePromQueries(ctx, &query.ContainerResource.PodResourceQuery, query.ContainerResource.ContainerName)
+		return p.buildPodResourcePromQuery(ctx, &query.ContainerResource.PodResourceQuery, query.ContainerResource.ContainerName)
 	case metric.WorkloadResourceQueryType:
-		return p.buildWorkloadResourcePromQueries(query.WorkloadResource)
-	// TODO(zqzten): support more query types
+		return p.buildWorkloadResourcePromQuery(query.WorkloadResource, "")
+	case metric.WorkloadContainerResourceQueryType:
+		return p.buildWorkloadResourcePromQuery(&query.WorkloadContainerResource.WorkloadResourceQuery, query.WorkloadContainerResource.ContainerName)
+	case metric.ObjectQueryType:
+		return p.buildObjectPromQuery(query.Object)
+	case metric.ExternalQueryType:
+		return p.buildExternalPromQuery(query.External)
 	default:
-		return nil, fmt.Errorf("unsupported query type %q", query.Type)
+		return "", nil, fmt.Errorf("unsupported query type %q", query.Type)
 	}
 }
 
-func (p *MetricProvider) buildPodOrContainerResourcePromQueries(ctx context.Context, prq *metric.PodResourceQuery, containerName string) ([]string, error) {
-	var (
-		queryTemplate *template.Template
-		ok            bool
-	)
-	if containerName != "" {
-		queryTemplate, ok = p.containerResourceUsageQueryTemplates[prq.ResourceName]
-		if !ok {
-			return nil, fmt.Errorf("unsupported container resource %q", prq.ResourceName)
+func (p *MetricProvider) buildPodResourcePromQuery(ctx context.Context, prq *metric.PodResourceQuery, containerName string) (string, *time.Duration, error) {
+	var rq *resourceQuery
+	switch prq.ResourceName {
+	case corev1.ResourceCPU:
+		rq = p.cpuQuery
+	case corev1.ResourceMemory:
+		rq = p.memQuery
+	default:
+		return "", nil, fmt.Errorf("unsupported resource %q", prq.ResourceName)
+	}
+
+	var podNames []string
+	if prq.Name != "" {
+		podNames = []string{prq.Name}
+	} else if prq.Selector != nil {
+		podList := &corev1.PodList{}
+		if err := p.client.List(ctx, podList, client.InNamespace(prq.Namespace), client.MatchingLabelsSelector{Selector: prq.Selector}); err != nil {
+			return "", nil, fmt.Errorf("failed to list pods in namespace %q with label selector %q: %v",
+				prq.Namespace, prq.Selector, err)
+		}
+		podNames = make([]string, 0, len(podList.Items))
+		for _, pod := range podList.Items {
+			podNames = append(podNames, pod.Name)
 		}
 	} else {
-		queryTemplate, ok = p.podResourceUsageQueryTemplates[prq.ResourceName]
-		if !ok {
-			return nil, fmt.Errorf("unsupported pod resource %q", prq.ResourceName)
-		}
+		return "", nil, fmt.Errorf("either name or selector should be specified in query")
 	}
 
-	if prq.Name != "" {
-		promQuery, err := util.ExecuteTemplate(queryTemplate, &queryTemplateArgs{
-			Window:        p.window,
-			Namespace:     prq.Namespace,
-			PodName:       prq.Name,
-			ContainerName: containerName,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to build query from template %q: %v", queryTemplate.Name(), err)
-		}
-		return []string{promQuery}, nil
+	var selector labels.Selector
+	if containerName != "" {
+		selector = labels.SelectorFromSet(labels.Set{rq.ContainerLabel: containerName})
+	} else {
+		selector = labels.Everything()
 	}
-
-	podList := &corev1.PodList{}
-	if err := p.client.List(ctx, podList, client.InNamespace(prq.Namespace), client.MatchingLabelsSelector{Selector: prq.Selector}); err != nil {
-		return nil, fmt.Errorf("failed to list pods in namespace %q with label selector %q: %v", prq.Namespace, prq.Selector, err)
-	}
-	result := make([]string, 0, len(podList.Items))
-	for _, pod := range podList.Items {
-		promQuery, err := util.ExecuteTemplate(queryTemplate, &queryTemplateArgs{
-			Window:        p.window,
-			Namespace:     pod.Namespace,
-			PodName:       pod.Name,
-			ContainerName: containerName,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to build query from template %q: %v", queryTemplate.Name(), err)
-		}
-		result = append(result, promQuery)
-	}
-	return result, nil
+	q, err := rq.ContainerQuery.Build("", schema.GroupResource{Resource: "pods"}, prq.Namespace, nil, selector, podNames...)
+	return string(q), &p.resourceQueryWindow, err
 }
 
-func (p *MetricProvider) buildWorkloadResourcePromQueries(wrq *metric.WorkloadResourceQuery) ([]string, error) {
-	queryTemplate, ok := p.workloadResourceUsageQueryTemplates[wrq.ResourceName]
+func (p *MetricProvider) buildWorkloadResourcePromQuery(wrq *metric.WorkloadResourceQuery, containerName string) (string, *time.Duration, error) {
+	var rq *resourceQuery
+	switch wrq.ResourceName {
+	case corev1.ResourceCPU:
+		rq = p.cpuQuery
+	case corev1.ResourceMemory:
+		rq = p.memQuery
+	default:
+		return "", nil, fmt.Errorf("unsupported resource %q", wrq.ResourceName)
+	}
+
+	podNamePattern, ok := p.workloadPodNamePatternMap[wrq.GroupKind]
 	if !ok {
-		return nil, fmt.Errorf("unsupported workload resource %q", wrq.ResourceName)
+		return "", nil, fmt.Errorf("unknown workload type %q", wrq.GroupKind)
 	}
-	// FIXME(zqzten): build more accurate pod name regex based on workload type
-	podNameRegex := fmt.Sprintf("^%s-.+$", wrq.Name)
-	promQuery, err := util.ExecuteTemplate(queryTemplate, &queryTemplateArgs{
-		Window:       p.window,
-		Namespace:    wrq.Namespace,
-		PodNameRegex: podNameRegex,
-	})
+	podNamePattern = fmt.Sprintf(podNamePattern, wrq.Name)
+
+	var selector labels.Selector
+	if containerName != "" {
+		selector = labels.SelectorFromSet(labels.Set{rq.ContainerLabel: containerName})
+	} else {
+		selector = labels.Everything()
+	}
+	// Ignore error here to skip validation because we are not building a real k8s label selector, but a pseudo one
+	// to let prom adapter build a regex match promql selector.
+	r, _ := labels.NewRequirement(metric.LabelPodName, selection.In, []string{podNamePattern})
+	selector = selector.Add(*r)
+	q, err := rq.ContainerQuery.BuildExternal("", wrq.Namespace, metric.LabelNamespace, nil, selector)
+	return string(q), &p.resourceQueryWindow, err
+}
+
+func (p *MetricProvider) buildObjectPromQuery(oq *metric.ObjectQuery) (string, *time.Duration, error) {
+	mapping, err := p.client.RESTMapper().RESTMapping(oq.GroupKind)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build query from template %q: %v", queryTemplate.Name(), err)
+		return "", nil, fmt.Errorf("failed to map kind %q to resource: %v", oq.GroupKind, err)
 	}
-	return []string{promQuery}, nil
+	info := cmaprovider.CustomMetricInfo{
+		GroupResource: mapping.Resource.GroupResource(),
+		Namespaced:    oq.Namespace != "",
+		Metric:        oq.Metric.Name,
+	}
+
+	selector, err := metav1.LabelSelectorAsSelector(oq.Metric.Selector)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to parse metric selector as label selector: %v", err)
+	}
+
+	var objectNames []string
+	if oq.Name != "" {
+		objectNames = []string{oq.Name}
+	} else if oq.Selector != nil {
+		objectNames, err = helpers.ListObjectNames(p.client.RESTMapper(), p.dynamicClient, oq.Namespace, oq.Selector, info)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to list objects of kind %q in namespace %q with label selector %q: %v",
+				oq.GroupKind, oq.Namespace, oq.Selector, err)
+		}
+	} else {
+		return "", nil, fmt.Errorf("either name or selector should be specified in query")
+	}
+
+	q, err := p.objectSeriesRegistry.QueryForMetric(info, oq.Namespace, selector, objectNames...)
+	return q, nil, err
+}
+
+func (p *MetricProvider) buildExternalPromQuery(eq *metric.ExternalQuery) (string, *time.Duration, error) {
+	selector, err := metav1.LabelSelectorAsSelector(eq.Metric.Selector)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to parse metric selector as label selector: %v", err)
+	}
+
+	q, err := p.externalSeriesRegistry.QueryForMetric(eq.Namespace, eq.Metric.Name, selector)
+	return q, nil, err
 }

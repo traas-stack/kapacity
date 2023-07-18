@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -68,10 +69,18 @@ var (
 )
 
 func init() {
+	utilruntime.ReallyCrash = false
+
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(autoscalingv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+}
+
+type promConfig struct {
+	Address                              string
+	MetricsConfigFile                    string
+	MetricsRelistInterval, MetricsMaxAge time.Duration
 }
 
 func main() {
@@ -86,12 +95,11 @@ func main() {
 		reconcileConcurrency int
 
 		metricProviderType string
-		promAddress        string
+		promConfig         promConfig
 	)
 	flag.StringVar(&logPath, "log-path", "", "The path to write log files. Omit to disable logging to file.")
 	flag.DurationVar(&logFileMaxAge, "log-file-max-age", 7*24*time.Hour, "The max age of the log files.")
 	flag.DurationVar(&logFileRotationTime, "log-file-rotation-time", 24*time.Hour, "The rotation time of the log file.")
-	// TODO(zqzten): use component config to replace below flags
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -100,7 +108,13 @@ func main() {
 	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
 	flag.StringVar(&metricProviderType, "metric-provider", "prometheus",
 		"The name of metric provider. Valid options are prometheus or metrics-api. Defaults to prometheus.")
-	flag.StringVar(&promAddress, "prometheus-address", "", "The address of the Prometheus to connect to.")
+	flag.StringVar(&promConfig.Address, "prometheus-address", "", "The address of the Prometheus to connect to.")
+	flag.StringVar(&promConfig.MetricsConfigFile, "prometheus-metrics-config-file", "",
+		"The path of configuration file containing details of how to transform between Prometheus metrics and metrics API resources.")
+	flag.DurationVar(&promConfig.MetricsRelistInterval, "prometheus-metrics-relist-interval", 10*time.Minute,
+		"The interval at which to re-list the set of all available metrics from Prometheus.")
+	flag.DurationVar(&promConfig.MetricsMaxAge, "prometheus-metrics-max-age", 0,
+		"The period for which to query the set of available metrics from Prometheus. If not set, it defaults to prometheus-metrics-relist-interval.")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
@@ -157,8 +171,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := webhook.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to set up webhook server")
+	dynamicClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to build dynamic client")
 		os.Exit(1)
 	}
 
@@ -167,6 +182,7 @@ func main() {
 		setupLog.Error(err, "unable to build discovery client")
 		os.Exit(1)
 	}
+
 	scalesGetter, err := scaleclient.NewForConfig(cfg, mgr.GetRESTMapper(), dynamic.LegacyAPIPathResolverFunc, scaleclient.NewDiscoveryScaleKindResolver(discoveryClient))
 	if err != nil {
 		setupLog.Error(err, "unable to build scale client")
@@ -176,13 +192,26 @@ func main() {
 
 	ihpaReconcilerEventTrigger := make(chan event.GenericEvent, 1024)
 
-	metricProvider, err := newMetricProviderFromConfig(metricProviderType, cfg, mgr.GetClient(), promAddress)
+	var metricProvider metricprovider.Interface
+	switch metricProviderType {
+	case "prometheus":
+		metricProvider, err = newPrometheusProviderFromConfig(mgr.GetClient(), dynamicClient, promConfig)
+	case "metrics-api":
+		metricProvider, err = newMetricsAPIProviderFromConfig(cfg)
+	default:
+		err = fmt.Errorf("unknown metric provider type %q", metricProviderType)
+	}
 	if err != nil {
-		setupLog.Error(err, "unable to build metric provider")
+		setupLog.Error(err, "unable to build metric provider", "metricProviderType", metricProviderType)
 		os.Exit(1)
 	}
 
 	externalHorizontalPortraitAlgorithmJobResultFetchers := initExternalHorizontalPortraitAlgorithmJobResultFetchers()
+
+	if err := webhook.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to set up webhook server")
+		os.Exit(1)
+	}
 
 	if err := (&autoscaling.ReplicaProfileReconciler{
 		Client:        mgr.GetClient(),
@@ -225,6 +254,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if runnable, ok := metricProvider.(manager.Runnable); ok {
+		if err := mgr.Add(runnable); err != nil {
+			setupLog.Error(err, "failed to add runnable metric provider to manager",
+				"metricProviderType", metricProviderType)
+			os.Exit(1)
+		}
+	}
+
 	for sourceType, fetcher := range externalHorizontalPortraitAlgorithmJobResultFetchers {
 		if err := mgr.Add(fetcher); err != nil {
 			setupLog.Error(err, "failed to add external horizontal portrait algorithm job result fetcher to manager",
@@ -240,27 +277,33 @@ func main() {
 	}
 }
 
-func newMetricProviderFromConfig(metricProviderType string, kubeConfig *rest.Config, kubeClient client.Client, promAddress string) (metricprovider.Interface, error) {
-	switch metricProviderType {
-	case "prometheus":
-		// TODO(zqzten): support more configs
-		promConfig := promapi.Config{
-			Address: promAddress,
-		}
-		promClient, err := promapi.NewClient(promConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build prometheus client: %v", err)
-		}
-		return prometheus.NewMetricProvider(kubeClient, promClient, 3*time.Minute)
-	case "metrics-api":
-		resourceMetricsClient, err := resourceclient.NewForConfig(kubeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build resource metrics client: %v", err)
-		}
-		return metricsapi.NewMetricProvider(resourceMetricsClient), nil
-	default:
-		return nil, fmt.Errorf("unknown metric provider type %q", metricProviderType)
+func newPrometheusProviderFromConfig(kubeClient client.Client, kubeDynamicClient dynamic.Interface, config promConfig) (metricprovider.Interface, error) {
+	if config.MetricsMaxAge == 0 {
+		config.MetricsMaxAge = config.MetricsRelistInterval
 	}
+
+	promClient, err := promapi.NewClient(promapi.Config{
+		Address: config.Address,
+		//TODO(zqzten): support more configs
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build prometheus client: %v", err)
+	}
+
+	metricsConfig, err := prometheus.MetricsConfigFromFile(config.MetricsConfigFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load metrics config from file %q: %v", config.MetricsConfigFile, err)
+	}
+
+	return prometheus.NewMetricProvider(kubeClient, kubeDynamicClient, promClient, metricsConfig, config.MetricsRelistInterval, config.MetricsMaxAge)
+}
+
+func newMetricsAPIProviderFromConfig(kubeConfig *rest.Config) (metricprovider.Interface, error) {
+	resourceMetricsClient, err := resourceclient.NewForConfig(kubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build resource metrics client: %v", err)
+	}
+	return metricsapi.NewMetricProvider(resourceMetricsClient), nil
 }
 
 func initHorizontalPortraitProviders(client client.Client, eventTrigger chan event.GenericEvent) map[autoscalingv1alpha1.HorizontalPortraitProviderType]portraitprovider.Horizontal {
