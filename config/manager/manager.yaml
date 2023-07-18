@@ -42,7 +42,10 @@ spec:
       - command:
         - /manager
         args:
+        - --zap-stacktrace-level=panic
+        - --zap-log-level=1
         - --leader-elect
+        - --prometheus-metrics-config-file=/etc/kapacity/prometheus-metrics-config.yaml
         image: controller:latest
         name: manager
         securityContext:
@@ -62,5 +65,13 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+        volumeMounts:
+        - name: config
+          mountPath: /etc/kapacity
+          readOnly: true
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: kapacity-config
