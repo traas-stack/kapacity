@@ -118,9 +118,13 @@ func buildPodMetricsInfoFromSamples(ctx context.Context, samples []*metric.Sampl
 			l.Info("met invalid metric sample without pod name label", "sample", s)
 			continue
 		}
+		if s.Window == nil {
+			l.Info("met invalid metric sample without window", "sample", s)
+			continue
+		}
 		res[podName] = &podMetric{
 			Timestamp: s.Timestamp.Time(),
-			Window:    s.Window,
+			Window:    *s.Window,
 			Value:     getResourceQuantityFromRawValue(resource, s.Value).MilliValue(),
 		}
 	}
