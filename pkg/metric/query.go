@@ -35,6 +35,9 @@ const (
 	// WorkloadResourceQueryType is for resource metrics (such as those specified in requests and limits, e.g. CPU or memory)
 	// known to Kubernetes describing each group of pods belonging to the same workload.
 	WorkloadResourceQueryType QueryType = "WorkloadResource"
+	// WorkloadContainerResourceQueryType is for resource metrics (such as those specified in requests and limits, e.g. CPU or memory)
+	// known to Kubernetes describing a specific container in each group of pods belonging to the same workload.
+	WorkloadContainerResourceQueryType QueryType = "WorkloadContainerResource"
 	// ObjectQueryType is for metrics describing a single Kubernetes object
 	// (e.g. hits-per-second on an Ingress object).
 	ObjectQueryType QueryType = "Object"
@@ -45,12 +48,13 @@ const (
 
 // Query represents a query for a specific type of metrics.
 type Query struct {
-	Type              QueryType
-	PodResource       *PodResourceQuery
-	ContainerResource *ContainerResourceQuery
-	WorkloadResource  *WorkloadResourceQuery
-	Object            *ObjectQuery
-	External          *ExternalQuery
+	Type                      QueryType
+	PodResource               *PodResourceQuery
+	ContainerResource         *ContainerResourceQuery
+	WorkloadResource          *WorkloadResourceQuery
+	WorkloadContainerResource *WorkloadContainerResourceQuery
+	Object                    *ObjectQuery
+	External                  *ExternalQuery
 }
 
 type PodResourceQuery struct {
@@ -66,11 +70,15 @@ type ContainerResourceQuery struct {
 }
 
 type WorkloadResourceQuery struct {
+	GroupKind    schema.GroupKind
 	Namespace    string
-	Kind         string
 	Name         string
-	APIVersion   string
 	ResourceName corev1.ResourceName
+}
+
+type WorkloadContainerResourceQuery struct {
+	WorkloadResourceQuery
+	ContainerName string
 }
 
 type ObjectQuery struct {

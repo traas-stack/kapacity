@@ -17,5 +17,6 @@
 package metric
 
 const (
-	LabelPodName = "pod"
+	LabelNamespace = "namespace"
+	LabelPodName   = "pod"
 )

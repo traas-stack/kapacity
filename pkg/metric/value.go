@@ -25,14 +25,14 @@ import (
 // Series is a stream of data points belonging to a metric.
 type Series struct {
 	Points []Point
-	Window time.Duration
+	Window *time.Duration
 	Labels Labels
 }
 
 // Sample is a single sample belonging to a metric.
 type Sample struct {
 	Point
-	Window time.Duration
+	Window *time.Duration
 	Labels Labels
 }
 

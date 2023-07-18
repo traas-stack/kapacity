@@ -19,15 +19,16 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"text/template"
 	"time"
 
 	promapi "github.com/prometheus/client_golang/api"
 	promapiv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	prommodel "github.com/prometheus/common/model"
-	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/prometheus-adapter/pkg/naming"
 
 	"github.com/traas-stack/kapacity/pkg/metric"
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
@@ -35,128 +36,126 @@ import (
 
 // MetricProvider provides metrics from Prometheus.
 type MetricProvider struct {
-	client  client.Client
-	promAPI promapiv1.API
+	client        client.Client
+	dynamicClient dynamic.Interface
+	promAPI       promapiv1.API
 
-	window time.Duration
+	workloadPodNamePatternMap map[schema.GroupKind]string
 
-	podResourceUsageQueryTemplates       map[corev1.ResourceName]*template.Template
-	containerResourceUsageQueryTemplates map[corev1.ResourceName]*template.Template
-	workloadResourceUsageQueryTemplates  map[corev1.ResourceName]*template.Template
+	cpuQuery, memQuery  *resourceQuery
+	resourceQueryWindow time.Duration
+
+	metricsRelistInterval time.Duration
+	metricsMaxAge         time.Duration
+
+	objectMetricNamers   []naming.MetricNamer
+	objectSeriesRegistry *objectSeriesRegistry
+
+	externalMetricNamers   []naming.MetricNamer
+	externalSeriesRegistry *externalSeriesRegistry
 }
 
 // NewMetricProvider creates a new MetricProvider with the given Prometheus client and rate metrics calculating window.
-func NewMetricProvider(client client.Client, promClient promapi.Client, window time.Duration) (metricprovider.Interface, error) {
-	// TODO(zqzten): make below configurable
-	podCPUUsageQueryTemplate, err := template.New("pod-cpu-usage-query").Delims("<<", ">>").Parse(defaultPodCPUUsageQueryTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse pod cpu usage query template: %v", err)
-	}
-	podMemUsageQueryTemplate, err := template.New("pod-mem-usage-query").Delims("<<", ">>").Parse(defaultPodMemUsageQueryTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse pod mem usage query template: %v", err)
+func NewMetricProvider(client client.Client, dynamicClient dynamic.Interface, promClient promapi.Client, metricsConfig *MetricsDiscoveryConfig, metricsRelistInterval, metricsMaxAge time.Duration) (metricprovider.Interface, error) {
+	workloadPodNamePatternMap := make(map[schema.GroupKind]string, len(metricsConfig.WorkloadPodNamePatterns))
+	for _, p := range metricsConfig.WorkloadPodNamePatterns {
+		workloadPodNamePatternMap[schema.GroupKind{Group: p.Group, Kind: p.Kind}] = p.Pattern
 	}
 
-	containerCPUUsageQueryTemplate, err := template.New("container-cpu-usage-query").Delims("<<", ">>").Parse(defaultContainerCPUUsageQueryTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse container cpu usage query template: %v", err)
+	resourceRules := metricsConfig.ResourceRules
+	if resourceRules == nil {
+		return nil, fmt.Errorf("missing resource rules in metrics discovery config")
 	}
-	containerMemUsageQueryTemplate, err := template.New("container-mem-usage-query").Delims("<<", ">>").Parse(defaultContainerMemUsageQueryTemplate)
+	cpuQuery, err := newResourceQuery(resourceRules.CPU, client.RESTMapper())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse container mem usage query template: %v", err)
+		return nil, fmt.Errorf("unable to construct querier for CPU metrics: %v", err)
+	}
+	memQuery, err := newResourceQuery(resourceRules.Memory, client.RESTMapper())
+	if err != nil {
+		return nil, fmt.Errorf("unable to construct querier for memory metrics: %v", err)
 	}
 
-	workloadCPUUsageQueryTemplate, err := template.New("workload-cpu-usage-query").Delims("<<", ">>").Parse(defaultWorkloadCPUUsageQueryTemplate)
+	objectMetricNamers, err := naming.NamersFromConfig(metricsConfig.Rules, client.RESTMapper())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse workload cpu usage query template: %v", err)
+		return nil, fmt.Errorf("unable to construct object metrics naming scheme from metrics rules: %v", err)
 	}
-	workloadMemUsageQueryTemplate, err := template.New("workload-mem-usage-query").Delims("<<", ">>").Parse(defaultWorkloadMemUsageQueryTemplate)
+	externalMetricNamers, err := naming.NamersFromConfig(metricsConfig.ExternalRules, client.RESTMapper())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse workload mem usage query template: %v", err)
+		return nil, fmt.Errorf("unable to construct external metrics naming scheme from metrics rules: %v", err)
 	}
 
 	return &MetricProvider{
-		client:  client,
-		promAPI: promapiv1.NewAPI(promClient),
-		window:  window,
-		podResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU:    podCPUUsageQueryTemplate,
-			corev1.ResourceMemory: podMemUsageQueryTemplate,
-		},
-		containerResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU:    containerCPUUsageQueryTemplate,
-			corev1.ResourceMemory: containerMemUsageQueryTemplate,
-		},
-		workloadResourceUsageQueryTemplates: map[corev1.ResourceName]*template.Template{
-			corev1.ResourceCPU:    workloadCPUUsageQueryTemplate,
-			corev1.ResourceMemory: workloadMemUsageQueryTemplate,
-		},
+		client:                    client,
+		dynamicClient:             dynamicClient,
+		promAPI:                   promapiv1.NewAPI(promClient),
+		workloadPodNamePatternMap: workloadPodNamePatternMap,
+		cpuQuery:                  cpuQuery,
+		memQuery:                  memQuery,
+		resourceQueryWindow:       time.Duration(resourceRules.Window),
+		metricsRelistInterval:     metricsRelistInterval,
+		metricsMaxAge:             metricsMaxAge,
+		objectMetricNamers:        objectMetricNamers,
+		objectSeriesRegistry:      &objectSeriesRegistry{Mapper: client.RESTMapper()},
+		externalMetricNamers:      externalMetricNamers,
+		externalSeriesRegistry:    &externalSeriesRegistry{},
 	}, nil
 }
 
 func (p *MetricProvider) QueryLatest(ctx context.Context, query *metric.Query) ([]*metric.Sample, error) {
 	l := log.FromContext(ctx)
 
-	promQueries, err := p.buildPromQueries(ctx, query)
+	promQuery, window, err := p.buildPromQuery(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build prom queries: %v", err)
 	}
 
-	result := make([]*metric.Sample, 0)
 	now := time.Now()
-	for _, promQuery := range promQueries {
-		res, warns, err := p.promAPI.Query(ctx, promQuery, now)
-		if len(warns) > 0 {
-			l.Info("got warnings from prom query", "warnings", warns, "query", promQuery, "time", now)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("prom query failed with query %q at %v: %v", promQuery, now, err)
-		}
-		samples, err := p.convertPromResultToSamples(res)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert prom result %q to metric samples: %v", res.String(), err)
-		}
-		result = append(result, samples...)
+	res, warns, err := p.promAPI.Query(ctx, promQuery, now)
+	if len(warns) > 0 {
+		l.Info("got warnings from prom query", "warnings", warns, "query", promQuery, "time", now)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("prom query failed with query %q at %v: %v", promQuery, now, err)
 	}
 
-	return result, nil
+	samples, err := p.convertPromResultToSamples(res, window)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert prom result %q to metric samples: %v", res.String(), err)
+	}
+	return samples, nil
 }
 
 func (p *MetricProvider) Query(ctx context.Context, query *metric.Query, start, end time.Time, step time.Duration) ([]*metric.Series, error) {
 	l := log.FromContext(ctx)
 
-	promQueries, err := p.buildPromQueries(ctx, query)
+	promQuery, window, err := p.buildPromQuery(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build prom queries: %v", err)
 	}
 
-	result := make([]*metric.Series, 0)
-	for _, promQuery := range promQueries {
-		// TODO(zqzten): consider query range by shards
-		res, warns, err := p.promAPI.QueryRange(ctx, promQuery, promapiv1.Range{
-			Start: start,
-			End:   end,
-			Step:  step,
-		})
-		if len(warns) > 0 {
-			l.Info("got warnings from prom query range", "warnings", warns, "query", promQuery,
-				"start", start, "end", end, "step", step)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("prom query range failed with query %q from %v to %v with step %v: %v",
-				promQuery, start, end, step, err)
-		}
-		series, err := p.convertPromResultToSeries(res)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert prom result %q to metric series: %v", res.String(), err)
-		}
-		result = append(result, series...)
+	// TODO(zqzten): consider query range by shards
+	res, warns, err := p.promAPI.QueryRange(ctx, promQuery, promapiv1.Range{
+		Start: start,
+		End:   end,
+		Step:  step,
+	})
+	if len(warns) > 0 {
+		l.Info("got warnings from prom query range", "warnings", warns, "query", promQuery,
+			"start", start, "end", end, "step", step)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("prom query range failed with query %q from %v to %v with step %v: %v",
+			promQuery, start, end, step, err)
 	}
 
-	return result, nil
+	series, err := p.convertPromResultToSeries(res, window)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert prom result %q to metric series: %v", res.String(), err)
+	}
+	return series, nil
 }
 
-func (p *MetricProvider) convertPromResultToSamples(value prommodel.Value) ([]*metric.Sample, error) {
+func (p *MetricProvider) convertPromResultToSamples(value prommodel.Value, window *time.Duration) ([]*metric.Sample, error) {
 	if value.Type() != prommodel.ValVector {
 		return nil, fmt.Errorf("cannot convert prom value of type %q to samples", value.Type())
 	}
@@ -169,12 +168,12 @@ func (p *MetricProvider) convertPromResultToSamples(value prommodel.Value) ([]*m
 		if promSample == nil {
 			continue
 		}
-		samples = append(samples, p.convertPromSampleToSample(promSample))
+		samples = append(samples, p.convertPromSampleToSample(promSample, window))
 	}
 	return samples, nil
 }
 
-func (p *MetricProvider) convertPromResultToSeries(value prommodel.Value) ([]*metric.Series, error) {
+func (p *MetricProvider) convertPromResultToSeries(value prommodel.Value, window *time.Duration) ([]*metric.Series, error) {
 	if value.Type() != prommodel.ValMatrix {
 		return nil, fmt.Errorf("cannot convert prom value of type %q to series", value.Type())
 	}
@@ -187,23 +186,23 @@ func (p *MetricProvider) convertPromResultToSeries(value prommodel.Value) ([]*me
 		if promSampleStream == nil {
 			continue
 		}
-		series = append(series, p.convertPromSampleStreamToSeries(promSampleStream))
+		series = append(series, p.convertPromSampleStreamToSeries(promSampleStream, window))
 	}
 	return series, nil
 }
 
-func (p *MetricProvider) convertPromSampleToSample(promSample *prommodel.Sample) *metric.Sample {
+func (p *MetricProvider) convertPromSampleToSample(promSample *prommodel.Sample, window *time.Duration) *metric.Sample {
 	return &metric.Sample{
 		Point: metric.Point{
 			Timestamp: promSample.Timestamp,
 			Value:     float64(promSample.Value),
 		},
-		Window: p.window,
+		Window: window,
 		Labels: convertPromMetricToLabels(promSample.Metric),
 	}
 }
 
-func (p *MetricProvider) convertPromSampleStreamToSeries(promSampleStream *prommodel.SampleStream) *metric.Series {
+func (p *MetricProvider) convertPromSampleStreamToSeries(promSampleStream *prommodel.SampleStream, window *time.Duration) *metric.Series {
 	points := make([]metric.Point, 0, len(promSampleStream.Values))
 	for _, promSamplePair := range promSampleStream.Values {
 		points = append(points, metric.Point{
@@ -213,7 +212,7 @@ func (p *MetricProvider) convertPromSampleStreamToSeries(promSampleStream *promm
 	}
 	return &metric.Series{
 		Points: points,
-		Window: p.window,
+		Window: window,
 		Labels: convertPromMetricToLabels(promSampleStream.Metric),
 	}
 }

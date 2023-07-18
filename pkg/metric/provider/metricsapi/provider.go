@@ -100,6 +100,10 @@ func (p *MetricProvider) getPodMetrics(ctx context.Context, namespace, name stri
 		return []metricsv1beta1.PodMetrics{*metrics}, nil
 	}
 
+	if selector == nil {
+		return nil, fmt.Errorf("either name or selector should be specified")
+	}
+
 	metrics, err := p.resourceMetricsClient.PodMetricses(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, err
@@ -156,7 +160,7 @@ func buildSampleFromPodResourceMetric(m metricsv1beta1.PodMetrics, v int64) *met
 			Timestamp: prommodel.Time(m.Timestamp.UnixMilli()),
 			Value:     float64(v) / 1000.0,
 		},
-		Window: m.Window.Duration,
+		Window: &m.Window.Duration,
 		Labels: metric.Labels{
 			metric.LabelPodName: m.Name,
 		},
