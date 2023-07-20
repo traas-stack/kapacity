@@ -94,6 +94,8 @@ func main() {
 		enableLeaderElection bool
 		reconcileConcurrency int
 
+		enableAdmissionWebhookServer bool
+
 		metricProviderType string
 		promConfig         promConfig
 	)
@@ -106,6 +108,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
+	flag.BoolVar(&enableAdmissionWebhookServer, "serve-admission-webhooks", true, "Enable admission webhook servers.")
 	flag.StringVar(&metricProviderType, "metric-provider", "prometheus",
 		"The name of metric provider. Valid options are prometheus or metrics-api. Defaults to prometheus.")
 	flag.StringVar(&promConfig.Address, "prometheus-address", "", "The address of the Prometheus to connect to.")
@@ -208,9 +211,11 @@ func main() {
 
 	externalHorizontalPortraitAlgorithmJobResultFetchers := initExternalHorizontalPortraitAlgorithmJobResultFetchers()
 
-	if err := webhook.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to set up webhook server")
-		os.Exit(1)
+	if enableAdmissionWebhookServer {
+		if err := webhook.SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to set up webhook server")
+			os.Exit(1)
+		}
 	}
 
 	if err := (&autoscaling.ReplicaProfileReconciler{
