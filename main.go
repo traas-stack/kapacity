@@ -49,6 +49,7 @@ import (
 
 	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/controllers/autoscaling"
+	internalgrpc "github.com/traas-stack/kapacity/internal/grpc"
 	"github.com/traas-stack/kapacity/internal/webhook"
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
@@ -96,6 +97,8 @@ func main() {
 
 		enableAdmissionWebhookServer bool
 
+		grpcServerAddr string
+
 		metricProviderType string
 		promConfig         promConfig
 	)
@@ -109,6 +112,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
 	flag.BoolVar(&enableAdmissionWebhookServer, "serve-admission-webhooks", true, "Enable admission webhook servers.")
+	flag.StringVar(&grpcServerAddr, "grpc-server-bind-address", ":9090", "The address the gRPC server binds to. Set 0 to disable the gRPC server.")
 	flag.StringVar(&metricProviderType, "metric-provider", "prometheus",
 		"The name of metric provider. Valid options are prometheus or metrics-api. Defaults to prometheus.")
 	flag.StringVar(&promConfig.Address, "prometheus-address", "", "The address of the Prometheus to connect to.")
@@ -257,6 +261,14 @@ func main() {
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
+	}
+
+	if grpcServerAddr != "" && grpcServerAddr != "0" {
+		server := internalgrpc.NewServer(grpcServerAddr)
+		if err := mgr.Add(server); err != nil {
+			setupLog.Error(err, "unable to set up gRPC server")
+			os.Exit(1)
+		}
 	}
 
 	if runnable, ok := metricProvider.(manager.Runnable); ok {
