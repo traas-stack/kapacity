@@ -160,9 +160,9 @@ func buildSampleFromPodResourceMetric(m metricsv1beta1.PodMetrics, v int64) *met
 			Timestamp: prommodel.Time(m.Timestamp.UnixMilli()),
 			Value:     float64(v) / 1000.0,
 		},
-		Window: &m.Window.Duration,
-		Labels: metric.Labels{
-			metric.LabelPodName: m.Name,
+		Labels: prommodel.LabelSet{
+			metric.LabelPodName: prommodel.LabelValue(m.Name),
 		},
+		Window: &m.Window.Duration,
 	}
 }

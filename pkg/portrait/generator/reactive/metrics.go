@@ -113,7 +113,7 @@ func buildPodMetricsInfoFromSamples(ctx context.Context, samples []*metric.Sampl
 	l := log.FromContext(ctx)
 	res := make(podMetricsInfo, len(samples))
 	for _, s := range samples {
-		podName := s.Labels[metric.LabelPodName]
+		podName := string(s.Labels[metric.LabelPodName])
 		if podName == "" {
 			l.Info("met invalid metric sample without pod name label", "sample", s)
 			continue

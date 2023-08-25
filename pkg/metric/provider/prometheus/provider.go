@@ -197,8 +197,8 @@ func (p *MetricProvider) convertPromSampleToSample(promSample *prommodel.Sample,
 			Timestamp: promSample.Timestamp,
 			Value:     float64(promSample.Value),
 		},
+		Labels: prommodel.LabelSet(promSample.Metric),
 		Window: window,
-		Labels: convertPromMetricToLabels(promSample.Metric),
 	}
 }
 
@@ -212,15 +212,10 @@ func (p *MetricProvider) convertPromSampleStreamToSeries(promSampleStream *promm
 	}
 	return &metric.Series{
 		Points: points,
+		Labels: prommodel.LabelSet(promSampleStream.Metric),
 		Window: window,
-		Labels: convertPromMetricToLabels(promSampleStream.Metric),
 	}
 }
 
-func convertPromMetricToLabels(promMetric prommodel.Metric) metric.Labels {
-	labels := metric.Labels{}
-	for k, v := range promMetric {
-		labels[string(k)] = string(v)
 	}
-	return labels
 }
