@@ -19,6 +19,7 @@ package prometheus
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	promapi "github.com/prometheus/client_golang/api"
@@ -32,6 +33,10 @@ import (
 
 	"github.com/traas-stack/kapacity/pkg/metric"
 	metricprovider "github.com/traas-stack/kapacity/pkg/metric/provider"
+)
+
+const (
+	maxPointsPerPromTimeSeries = 11000
 )
 
 // MetricProvider provides metrics from Prometheus.
@@ -53,6 +58,12 @@ type MetricProvider struct {
 
 	externalMetricNamers   []naming.MetricNamer
 	externalSeriesRegistry *externalSeriesRegistry
+}
+
+type shardQueryResult struct {
+	Index  int
+	Series []*metric.Series
+	Err    error
 }
 
 // NewMetricProvider creates a new MetricProvider with the given Prometheus client and rate metrics calculating window.
@@ -118,7 +129,7 @@ func (p *MetricProvider) QueryLatest(ctx context.Context, query *metric.Query) (
 		return nil, fmt.Errorf("prom query failed with query %q at %v: %v", promQuery, now, err)
 	}
 
-	samples, err := p.convertPromResultToSamples(res, window)
+	samples, err := convertPromResultToSamples(res, window)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert prom result %q to metric samples: %v", res.String(), err)
 	}
@@ -133,29 +144,95 @@ func (p *MetricProvider) Query(ctx context.Context, query *metric.Query, start, 
 		return nil, fmt.Errorf("failed to build prom queries: %v", err)
 	}
 
-	// TODO(zqzten): consider query range by shards
-	res, warns, err := p.promAPI.QueryRange(ctx, promQuery, promapiv1.Range{
-		Start: start,
-		End:   end,
-		Step:  step,
-	})
-	if len(warns) > 0 {
-		l.Info("got warnings from prom query range", "warnings", warns, "query", promQuery,
-			"start", start, "end", end, "step", step)
+	// query range by shards to avoid exceeding maximum points limitation per timeseries of prometheus api
+	shards := promQueryRangeSharding(start, end, step)
+	shardResCh := make(chan *shardQueryResult, len(shards))
+	var wg sync.WaitGroup
+	for i := range shards {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			shardRes := &shardQueryResult{Index: index}
+
+			res, warns, err := p.promAPI.QueryRange(ctx, promQuery, shards[index])
+			if len(warns) > 0 {
+				l.Info("got warnings from prom query range", "warnings", warns, "query", promQuery,
+					"start", start, "end", end, "step", step)
+			}
+			if err != nil {
+				shardRes.Err = fmt.Errorf("prom query range failed with query %q from %v to %v with step %v: %v",
+					promQuery, start, end, step, err)
+				shardResCh <- shardRes
+				return
+			}
+
+			series, err := convertPromResultToSeries(res, window)
+			if err != nil {
+				shardRes.Err = fmt.Errorf("failed to convert prom result %q to metric series: %v", res.String(), err)
+				shardResCh <- shardRes
+				return
+			}
+			shardRes.Series = series
+			shardResCh <- shardRes
+		}(i)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("prom query range failed with query %q from %v to %v with step %v: %v",
-			promQuery, start, end, step, err)
+	wg.Wait()
+	close(shardResCh)
+
+	// merge series shards by their labels
+	orderedShardRes := make([]*shardQueryResult, len(shards))
+	for shardRes := range shardResCh {
+		orderedShardRes[shardRes.Index] = shardRes
+	}
+	seriesMap := make(map[string]*metric.Series)
+	errs := make([]error, 0)
+	for _, shardRes := range orderedShardRes {
+		if shardRes.Err != nil {
+			errs = append(errs, shardRes.Err)
+			continue
+		}
+		for _, series := range shardRes.Series {
+			key := series.Labels.String()
+			if prevSeries, ok := seriesMap[key]; ok {
+				prevSeries.Points = append(prevSeries.Points, series.Points...)
+			} else {
+				seriesMap[key] = series
+			}
+		}
 	}
 
-	series, err := p.convertPromResultToSeries(res, window)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert prom result %q to metric series: %v", res.String(), err)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("%v", errs)
+	}
+	series := make([]*metric.Series, 0, len(seriesMap))
+	for _, s := range seriesMap {
+		series = append(series, s)
 	}
 	return series, nil
 }
 
-func (p *MetricProvider) convertPromResultToSamples(value prommodel.Value, window *time.Duration) ([]*metric.Sample, error) {
+func promQueryRangeSharding(start, end time.Time, step time.Duration) []promapiv1.Range {
+	shards := make([]promapiv1.Range, 0)
+	for shardStart, complete := start, false; !complete; {
+		shardEnd := shardStart.Add(step * maxPointsPerPromTimeSeries)
+		if !shardEnd.Before(end) {
+			shardEnd = end
+			complete = true
+		}
+		shards = append(shards, promapiv1.Range{
+			Start: shardStart,
+			End:   shardEnd,
+			Step:  step,
+		})
+		shardStart = shardEnd.Add(step)
+		if shardStart.After(end) {
+			complete = true
+		}
+	}
+	return shards
+}
+
+func convertPromResultToSamples(value prommodel.Value, window *time.Duration) ([]*metric.Sample, error) {
 	if value.Type() != prommodel.ValVector {
 		return nil, fmt.Errorf("cannot convert prom value of type %q to samples", value.Type())
 	}
@@ -168,12 +245,12 @@ func (p *MetricProvider) convertPromResultToSamples(value prommodel.Value, windo
 		if promSample == nil {
 			continue
 		}
-		samples = append(samples, p.convertPromSampleToSample(promSample, window))
+		samples = append(samples, convertPromSampleToSample(promSample, window))
 	}
 	return samples, nil
 }
 
-func (p *MetricProvider) convertPromResultToSeries(value prommodel.Value, window *time.Duration) ([]*metric.Series, error) {
+func convertPromResultToSeries(value prommodel.Value, window *time.Duration) ([]*metric.Series, error) {
 	if value.Type() != prommodel.ValMatrix {
 		return nil, fmt.Errorf("cannot convert prom value of type %q to series", value.Type())
 	}
@@ -186,12 +263,12 @@ func (p *MetricProvider) convertPromResultToSeries(value prommodel.Value, window
 		if promSampleStream == nil {
 			continue
 		}
-		series = append(series, p.convertPromSampleStreamToSeries(promSampleStream, window))
+		series = append(series, convertPromSampleStreamToSeries(promSampleStream, window))
 	}
 	return series, nil
 }
 
-func (p *MetricProvider) convertPromSampleToSample(promSample *prommodel.Sample, window *time.Duration) *metric.Sample {
+func convertPromSampleToSample(promSample *prommodel.Sample, window *time.Duration) *metric.Sample {
 	return &metric.Sample{
 		Point: metric.Point{
 			Timestamp: promSample.Timestamp,
@@ -202,7 +279,7 @@ func (p *MetricProvider) convertPromSampleToSample(promSample *prommodel.Sample,
 	}
 }
 
-func (p *MetricProvider) convertPromSampleStreamToSeries(promSampleStream *prommodel.SampleStream, window *time.Duration) *metric.Series {
+func convertPromSampleStreamToSeries(promSampleStream *prommodel.SampleStream, window *time.Duration) *metric.Series {
 	points := make([]metric.Point, 0, len(promSampleStream.Values))
 	for _, promSamplePair := range promSampleStream.Values {
 		points = append(points, metric.Point{
@@ -214,8 +291,5 @@ func (p *MetricProvider) convertPromSampleStreamToSeries(promSampleStream *promm
 		Points: points,
 		Labels: prommodel.LabelSet(promSampleStream.Metric),
 		Window: window,
-	}
-}
-
 	}
 }
