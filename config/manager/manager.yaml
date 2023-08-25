@@ -45,7 +45,7 @@ spec:
         - --zap-stacktrace-level=panic
         - --zap-log-level=1
         - --leader-elect
-        - --prometheus-metrics-config-file=/etc/kapacity/prometheus-metrics-config.yaml
+        - --prometheus-metrics-config=/etc/kapacity/prometheus-metrics-config.yaml
         image: controller:latest
         name: manager
         securityContext:
