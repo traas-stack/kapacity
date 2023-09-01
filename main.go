@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	scaleclient "k8s.io/client-go/scale"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -80,6 +82,8 @@ func init() {
 
 type promConfig struct {
 	Address                              string
+	AuthInCluster                        bool
+	AuthConfigFile                       string
 	MetricsConfigFile                    string
 	MetricsRelistInterval, MetricsMaxAge time.Duration
 }
@@ -112,12 +116,17 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
 	flag.BoolVar(&enableAdmissionWebhookServer, "serve-admission-webhooks", true, "Enable admission webhook servers.")
-	flag.StringVar(&grpcServerAddr, "grpc-server-bind-address", ":9090", "The address the gRPC server binds to. Set 0 to disable the gRPC server.")
+	flag.StringVar(&grpcServerAddr, "grpc-server-bind-address", ":9090",
+		"The address the gRPC server binds to. Set 0 to disable the gRPC server.")
 	flag.StringVar(&metricProviderType, "metric-provider", "prometheus",
 		"The name of metric provider. Valid options are prometheus or metrics-api. Defaults to prometheus.")
 	flag.StringVar(&promConfig.Address, "prometheus-address", "", "The address of the Prometheus to connect to.")
-	flag.StringVar(&promConfig.MetricsConfigFile, "prometheus-metrics-config-file", "",
-		"The path of configuration file containing details of how to transform between Prometheus metrics and metrics API resources.")
+	flag.BoolVar(&promConfig.AuthInCluster, "prometheus-auth-incluster", false,
+		"Use auth details from the in-cluster kubeconfig when connecting to prometheus.")
+	flag.StringVar(&promConfig.AuthConfigFile, "prometheus-auth-config", "",
+		"The kubeconfig file used to configure auth when connecting to Prometheus.")
+	flag.StringVar(&promConfig.MetricsConfigFile, "prometheus-metrics-config", "",
+		"The configuration file containing details of how to transform between Prometheus metrics and metrics API resources.")
 	flag.DurationVar(&promConfig.MetricsRelistInterval, "prometheus-metrics-relist-interval", 10*time.Minute,
 		"The interval at which to re-list the set of all available metrics from Prometheus.")
 	flag.DurationVar(&promConfig.MetricsMaxAge, "prometheus-metrics-max-age", 0,
@@ -299,10 +308,7 @@ func newPrometheusProviderFromConfig(kubeClient client.Client, kubeDynamicClient
 		config.MetricsMaxAge = config.MetricsRelistInterval
 	}
 
-	promClient, err := promapi.NewClient(promapi.Config{
-		Address: config.Address,
-		//TODO(zqzten): support more configs
-	})
+	promClient, err := buildPrometheusClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build prometheus client: %v", err)
 	}
@@ -313,6 +319,42 @@ func newPrometheusProviderFromConfig(kubeClient client.Client, kubeDynamicClient
 	}
 
 	return prometheus.NewMetricProvider(kubeClient, kubeDynamicClient, promClient, metricsConfig, config.MetricsRelistInterval, config.MetricsMaxAge)
+}
+
+func buildPrometheusClient(config promConfig) (promapi.Client, error) {
+	if config.AuthInCluster && config.AuthConfigFile != "" {
+		return nil, fmt.Errorf("may not use both in-cluster auth and an explicit kubeconfig at the same time")
+	}
+	var (
+		rt http.RoundTripper = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		}
+		authConfig *rest.Config
+		err        error
+	)
+	if config.AuthInCluster {
+		authConfig, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build in-cluster auth config: %v", err)
+		}
+	} else if config.AuthConfigFile != "" {
+		authConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: config.AuthConfigFile},
+			&clientcmd.ConfigOverrides{}).ClientConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build auth config from kubeconfig %q: %v", config.AuthConfigFile, err)
+		}
+	}
+	if authConfig != nil {
+		rt, err = rest.TransportFor(authConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build transport from auth config: %v", err)
+		}
+	}
+	return promapi.NewClient(promapi.Config{
+		Address:      config.Address,
+		RoundTripper: rt,
+	})
 }
 
 func newMetricsAPIProviderFromConfig(kubeConfig *rest.Config) (metricprovider.Interface, error) {

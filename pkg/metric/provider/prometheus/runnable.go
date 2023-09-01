@@ -85,7 +85,7 @@ func (p *MetricProvider) Start(ctx context.Context) error {
 	return nil
 }
 
-func (p *MetricProvider) NeedLeaderElection() bool {
+func (*MetricProvider) NeedLeaderElection() bool {
 	return false
 }
 

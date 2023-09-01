@@ -25,15 +25,15 @@ import (
 // Series is a stream of data points belonging to a metric.
 type Series struct {
 	Points []Point
+	Labels prommodel.LabelSet
 	Window *time.Duration
-	Labels Labels
 }
 
 // Sample is a single sample belonging to a metric.
 type Sample struct {
 	Point
+	Labels prommodel.LabelSet
 	Window *time.Duration
-	Labels Labels
 }
 
 // Point represents a single data point for a given timestamp.
@@ -41,6 +41,3 @@ type Point struct {
 	Timestamp prommodel.Time
 	Value     float64
 }
-
-// Labels store labels by string kv.
-type Labels map[string]string
