@@ -46,6 +46,7 @@ import (
 	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/pkg/metric/provider/metricsapi"
 	pkgscale "github.com/traas-stack/kapacity/pkg/scale"
+	"github.com/traas-stack/kapacity/pkg/util"
 )
 
 var (
@@ -72,6 +73,7 @@ func TestGenerateHorizontal(t *testing.T) {
 	}
 	scaleTargetRef := k8sautoscalingv2.CrossVersionObjectReference{Kind: "Deployment", APIVersion: "apps/v1beta2", Name: "foo"}
 	fakeClient := fake.NewClientBuilder().WithObjects(preparePod(1)).Build()
+	fakePodLister := util.NewCtrlPodLister(fakeClient)
 	algorithm := autoscalingv1alpha1.PortraitAlgorithm{Type: autoscalingv1alpha1.KubeHPAPortraitAlgorithmType}
 	metricSpecs := prepareMetricSpec(corev1.ResourceCPU, 30)
 	fakeScaler := prepareScaleClient(t)
@@ -81,7 +83,7 @@ func TestGenerateHorizontal(t *testing.T) {
 			prepareFakeMetricsClient(testCase.resourceName, testCase.podMetricsMap, testCase.timestamp).MetricsV1beta1(),
 		)
 
-		portraitGenerator := NewPortraitGenerator(fakeClient, fakeMetricProvider, fakeScaler)
+		portraitGenerator := NewPortraitGenerator(fakeMetricProvider, fakePodLister, fakeScaler)
 		assert.NotNil(t, portraitGenerator)
 
 		portraitData, _, _ := portraitGenerator.GenerateHorizontal(context.Background(), testNamespace, scaleTargetRef, metricSpecs, algorithm)

@@ -378,7 +378,7 @@ func initHorizontalPortraitProviders(client client.Client, eventTrigger chan eve
 
 func initPortraitGenerators(client client.Client, metricProvider metricprovider.Interface, scaler *scale.Scaler) map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface {
 	generators := make(map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface)
-	generators[autoscalingv1alpha1.ReactivePortraitType] = reactive.NewPortraitGenerator(client, metricProvider, scaler)
+	generators[autoscalingv1alpha1.ReactivePortraitType] = reactive.NewPortraitGenerator(metricProvider, util.NewCtrlPodLister(client), scaler)
 	return generators
 }
 
