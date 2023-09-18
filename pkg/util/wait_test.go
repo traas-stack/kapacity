@@ -118,7 +118,7 @@ func TestExponentialBackoffWithContext(t *testing.T) {
 				return test.callback(attempts)
 			})
 
-			if test.errExpected != err {
+			if !errors.Is(err, test.errExpected) {
 				t.Errorf("expected error: %v but got: %v", test.errExpected, err)
 			}
 
