@@ -21,9 +21,8 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apiv1pod "k8s.io/kubernetes/pkg/api/v1/pod"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/traas-stack/kapacity/pkg/util"
 )
 
 const (
@@ -56,7 +55,7 @@ func (c *ReadinessGate) Off(ctx context.Context, pods []*corev1.Pod) error {
 
 func (c *ReadinessGate) setReadinessGateStatus(ctx context.Context, pod *corev1.Pod, status corev1.ConditionStatus) error {
 	patch := client.MergeFrom(pod.DeepCopy())
-	if util.UpdatePodCondition(&pod.Status, &corev1.PodCondition{
+	if apiv1pod.UpdatePodCondition(&pod.Status, &corev1.PodCondition{
 		Type:   ReadinessGateOnline,
 		Status: status,
 	}) {

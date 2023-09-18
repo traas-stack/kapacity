@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -414,10 +415,7 @@ func (r *ReplicaProfileReconciler) findReplicaProfileToEnqueueForPod(ctx context
 }
 
 func (r *ReplicaProfileReconciler) getWorkload(rp *autoscalingv1alpha1.ReplicaProfile, selector labels.Selector) (workload.Interface, error) {
-	gvk, err := util.ParseGVK(rp.Spec.ScaleTargetRef.APIVersion, rp.Spec.ScaleTargetRef.Kind)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse scale target's gvk: %v", err)
-	}
+	gvk := schema.FromAPIVersionAndKind(rp.Spec.ScaleTargetRef.APIVersion, rp.Spec.ScaleTargetRef.Kind)
 	switch {
 	case gvk.Group == "apps" && gvk.Kind == "ReplicaSet":
 		return &workload.ReplicaSet{

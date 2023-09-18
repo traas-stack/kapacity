@@ -20,13 +20,14 @@ package workload
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/kubernetes/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	podsorter "github.com/traas-stack/kapacity/pkg/pod/sorter"
 	"github.com/traas-stack/kapacity/pkg/util"
 )
 
@@ -55,11 +56,12 @@ func (w *ReplicaSet) Sort(ctx context.Context, pods []*corev1.Pod) ([]*corev1.Po
 	for i, pod := range pods {
 		ranks[i] = podsOnNode[pod.Spec.NodeName]
 	}
-	sorter := &podsorter.ActivePodsWithRanks{
-		Ranks: ranks,
-		Now:   metav1.Now(),
-	}
-	return sorter.Sort(ctx, pods)
+	sort.Sort(controller.ActivePodsWithRanks{
+		Pods: pods,
+		Rank: ranks,
+		Now:  metav1.Now(),
+	})
+	return pods, nil
 }
 
 func (*ReplicaSet) CanSelectPodsToScaleDown(context.Context) bool {

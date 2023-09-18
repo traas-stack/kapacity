@@ -22,7 +22,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -56,15 +55,6 @@ func SetConditionInList(inputList []metav1.Condition, conditionType string, stat
 	existingCond.Message = message
 
 	return resList
-}
-
-// ParseGVK parses the given api version and kind to schema.GroupVersionKind.
-func ParseGVK(apiVersion, kind string) (schema.GroupVersionKind, error) {
-	gv, err := schema.ParseGroupVersion(apiVersion)
-	if err != nil {
-		return schema.GroupVersionKind{}, err
-	}
-	return gv.WithKind(kind), nil
 }
 
 // NewControllerRef creates a controller owner reference pointing to the given owner.
