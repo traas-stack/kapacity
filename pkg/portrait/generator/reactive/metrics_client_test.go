@@ -44,7 +44,7 @@ func TestGetResourceMetric_UnsupportedResource(t *testing.T) {
 	metricsClient := metricsClient{}
 
 	selector, _ := labels.Parse("foo=bar")
-	_, err := metricsClient.GetResourceMetric(context.Background(), corev1.ResourceStorage, testNamespace, selector, "test-container")
+	_, _, err := metricsClient.GetResourceMetric(context.Background(), corev1.ResourceStorage, testNamespace, selector, "test-container")
 	assert.NotNil(t, err, "unsupported resource for %s", corev1.ResourceStorage)
 }
 
@@ -62,14 +62,14 @@ func TestGetResourceMetric(t *testing.T) {
 	for _, testCase := range testCases {
 		fakeMetricsClient := prepareFakeMetricsClient(testCase.resourceName, testCase.podMetricsMap, testCase.timestamp)
 		metricsClient := metricsClient{
-			MetricProvider: metricsapi.NewMetricProvider(
+			metricProvider: metricsapi.NewMetricProvider(
 				fakeMetricsClient.MetricsV1beta1(),
 			),
 		}
 
 		selector, _ := labels.Parse("name=test-pod")
 		// pod resources
-		podMetrics, err := metricsClient.GetResourceMetric(context.Background(), testCase.resourceName, testNamespace, selector, "")
+		podMetrics, _, err := metricsClient.GetResourceMetric(context.Background(), testCase.resourceName, testNamespace, selector, "")
 		assert.Nil(t, err)
 
 		for podName, resValues := range testCase.podMetricsMap {
@@ -79,7 +79,7 @@ func TestGetResourceMetric(t *testing.T) {
 
 				// container resources
 				containerName := buildContainerName(podName, index+1)
-				containerMetrics, err := metricsClient.GetResourceMetric(context.Background(), testCase.resourceName, testNamespace, selector, containerName)
+				containerMetrics, _, err := metricsClient.GetResourceMetric(context.Background(), testCase.resourceName, testNamespace, selector, containerName)
 				assert.Nil(t, err, "failed to get resource metrics")
 				assert.NotNil(t, containerMetrics, "container metrics not found for %s", containerName)
 				assert.Equal(t, containerValue, containerMetrics[podName].Value, "container metrics not expected for %s", containerName)
@@ -92,7 +92,7 @@ func TestGetResourceMetric(t *testing.T) {
 
 type metricsTestCase struct {
 	resourceName corev1.ResourceName
-	//key is pod name, value is container resource metric values
+	// key is pod name, value is container resource metric values
 	podMetricsMap map[string][]int64
 	timestamp     time.Time
 }
