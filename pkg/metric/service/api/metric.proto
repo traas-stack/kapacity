@@ -33,19 +33,20 @@ message Sample {
 }
 
 message Point {
-  int64  timestamp = 1;
+  int64 timestamp = 1;
   double value = 2;
 }
 
 message Query {
   QueryType type = 1;
   oneof query {
-    PodResourceQuery  pod_resource = 2;
+    PodResourceQuery pod_resource = 2;
     ContainerResourceQuery container_resource = 3;
     WorkloadResourceQuery workload_resource = 4;
     WorkloadContainerResourceQuery workload_container_resource = 5;
     ObjectQuery object = 6;
     ExternalQuery external = 7;
+    WorkloadExternalQuery workload_external = 8;
   }
 }
 
@@ -56,6 +57,7 @@ enum QueryType {
   WORKLOAD_CONTAINER_RESOURCE = 3;
   OBJECT = 4;
   EXTERNAL = 5;
+  WORKLOAD_EXTERNAL = 6;
 }
 
 message PodResourceQuery {
@@ -105,6 +107,13 @@ message ObjectQuery {
 message ExternalQuery {
   optional string namespace = 1 ;
   MetricIdentifier metric = 2;
+}
+
+message WorkloadExternalQuery {
+  GroupKind group_kind = 1;
+  string namespace = 2;
+  string name = 3;
+  MetricIdentifier metric = 4;
 }
 
 message GroupKind {

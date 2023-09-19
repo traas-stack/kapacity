@@ -47,6 +47,8 @@ func (p *MetricProvider) buildPromQuery(ctx context.Context, query *metric.Query
 		return p.buildObjectPromQuery(query.Object)
 	case metric.ExternalQueryType:
 		return p.buildExternalPromQuery(query.External)
+	case metric.WorkloadExternalQueryType:
+		return p.buildWorkloadExternalPromQuery(query.WorkloadExternal)
 	default:
 		return "", nil, fmt.Errorf("unsupported query type %q", query.Type)
 	}
@@ -161,5 +163,32 @@ func (p *MetricProvider) buildExternalPromQuery(eq *metric.ExternalQuery) (strin
 	}
 
 	q, err := p.externalSeriesRegistry.QueryForMetric(eq.Namespace, eq.Metric.Name, selector)
+	return q, nil, err
+}
+
+func (p *MetricProvider) buildWorkloadExternalPromQuery(weq *metric.WorkloadExternalQuery) (string, *time.Duration, error) {
+	podNamePattern, ok := p.workloadPodNamePatternMap[weq.GroupKind]
+	if !ok {
+		return "", nil, fmt.Errorf("unknown workload type %q", weq.GroupKind)
+	}
+	podNamePattern = fmt.Sprintf(podNamePattern, weq.Name)
+
+	var (
+		selector labels.Selector
+		err      error
+	)
+	if weq.Metric.Selector != nil {
+		selector, err = metav1.LabelSelectorAsSelector(weq.Metric.Selector)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to parse metric selector as label selector: %v", err)
+		}
+	} else {
+		selector = labels.Everything()
+	}
+	// Ignore error here to skip validation because we are not building a real k8s label selector, but a pseudo one
+	// to let prom adapter build a regex match promql selector.
+	r, _ := labels.NewRequirement(metric.LabelPodName, selection.In, []string{podNamePattern})
+	selector = selector.Add(*r)
+	q, err := p.externalSeriesRegistry.QueryForMetric(weq.Namespace, weq.Metric.Name, selector)
 	return q, nil, err
 }

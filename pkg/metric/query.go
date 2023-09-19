@@ -44,6 +44,9 @@ const (
 	// ExternalQueryType is for global metrics that are not associated with any Kubernetes object
 	// (e.g. length of queue in cloud messaging service or QPS from loadbalancer running outside of cluster).
 	ExternalQueryType QueryType = "External"
+	// WorkloadExternalQueryType is for global metrics describing each group of pods belonging to the same workload
+	// (e.g. the total number of ready pods).
+	WorkloadExternalQueryType QueryType = "WorkloadExternal"
 )
 
 // Query represents a query for a specific type of metrics.
@@ -55,6 +58,7 @@ type Query struct {
 	WorkloadContainerResource *WorkloadContainerResourceQuery
 	Object                    *ObjectQuery
 	External                  *ExternalQuery
+	WorkloadExternal          *WorkloadExternalQuery
 }
 
 type PodResourceQuery struct {
@@ -91,5 +95,12 @@ type ObjectQuery struct {
 
 type ExternalQuery struct {
 	Namespace string
+	Metric    k8sautoscalingv2.MetricIdentifier
+}
+
+type WorkloadExternalQuery struct {
+	GroupKind schema.GroupKind
+	Namespace string
+	Name      string
 	Metric    k8sautoscalingv2.MetricIdentifier
 }
