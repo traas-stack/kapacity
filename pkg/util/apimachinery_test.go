@@ -77,12 +77,6 @@ func TestSetConditionInList_ExistConditionType(t *testing.T) {
 	assert.Equal(t, conditionReason, condition.Reason)
 }
 
-func TestParseGVK(t *testing.T) {
-	groupVersion, err := ParseGVK(horizontalPortrait.APIVersion, horizontalPortrait.Kind)
-	assert.Nil(t, err)
-	assert.Equal(t, horizontalPortrait.GroupVersionKind(), groupVersion)
-}
-
 func TestNewControllerRef(t *testing.T) {
 	ownerRef := NewControllerRef(horizontalPortrait)
 	assert.Equal(t, horizontalPortrait.APIVersion, ownerRef.APIVersion)
