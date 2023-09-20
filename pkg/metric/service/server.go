@@ -219,6 +219,30 @@ func convertAPIQueryToInternalQuery(in *api.Query) (*metric.Query, error) {
 				Selector: ls,
 			},
 		}
+	case metric.WorkloadExternalQueryType:
+		workloadExternalQuery := in.GetWorkloadExternal()
+		var (
+			ls  *metav1.LabelSelector
+			err error
+		)
+		if workloadExternalQuery.GetMetric() != nil && workloadExternalQuery.GetMetric().GetSelector() != "" {
+			ls, err = metav1.ParseToLabelSelector(workloadExternalQuery.GetMetric().GetSelector())
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse metric selector %q of workload external query: %v", workloadExternalQuery.GetMetric().GetSelector(), err)
+			}
+		}
+		out.WorkloadExternal = &metric.WorkloadExternalQuery{
+			GroupKind: schema.GroupKind{
+				Group: workloadExternalQuery.GetGroupKind().GetGroup(),
+				Kind:  workloadExternalQuery.GetGroupKind().GetKind(),
+			},
+			Namespace: workloadExternalQuery.GetNamespace(),
+			Name:      workloadExternalQuery.GetName(),
+			Metric: k8sautoscalingv2.MetricIdentifier{
+				Name:     workloadExternalQuery.GetMetric().GetName(),
+				Selector: ls,
+			},
+		}
 	}
 
 	return out, nil
@@ -239,6 +263,8 @@ func convertAPIQueryTypeToInternalQueryType(in api.QueryType) (metric.QueryType,
 		out = metric.ObjectQueryType
 	case api.QueryType_EXTERNAL:
 		out = metric.ExternalQueryType
+	case api.QueryType_WORKLOAD_EXTERNAL:
+		out = metric.WorkloadExternalQueryType
 	default:
 		return "", fmt.Errorf("unknown query type %q", in.String())
 	}
