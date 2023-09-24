@@ -393,9 +393,9 @@ func initPortraitGenerators(client client.Client, metricProvider metricprovider.
 	return generators
 }
 
-func initExternalHorizontalPortraitAlgorithmJobControllers() map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal {
+func initExternalHorizontalPortraitAlgorithmJobControllers(client client.Client) map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal {
 	controllers := make(map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal)
-	// TODO
+	controllers[autoscalingv1alpha1.CronJobPortraitAlgorithmJobType] = jobcontroller.NewCronJobHorizontal(client)
 	return controllers
 }
 
