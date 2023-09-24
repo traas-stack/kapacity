@@ -253,8 +253,8 @@ func main() {
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
 		EventRecorder:     mgr.GetEventRecorderFor(autoscaling.IHPAControllerName),
-		PortraitProviders: initHorizontalPortraitProviders(mgr.GetClient(), ihpaReconcilerEventTrigger),
 		EventTrigger:      ihpaReconcilerEventTrigger,
+		PortraitProviders: initHorizontalPortraitProviders(mgr.GetClient(), ihpaReconcilerEventTrigger),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "IntelligentHorizontalPodAutoscaler")
 		os.Exit(1)
