@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ import (
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	promapi "github.com/prometheus/client_golang/api"
 	"go.uber.org/zap/zapcore"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
@@ -38,6 +40,7 @@ import (
 	"k8s.io/klog/v2"
 	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlconfigv1alpha1 "sigs.k8s.io/controller-runtime/pkg/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -208,6 +211,7 @@ func main() {
 	scaler := scale.NewScaler(scalesGetter, mgr.GetRESTMapper())
 
 	ihpaReconcilerEventTrigger := make(chan event.GenericEvent, 1024)
+	hpReconcilerEventTrigger := make(chan event.GenericEvent, 1024)
 
 	var metricProvider metricprovider.Interface
 	switch metricProviderType {
@@ -223,7 +227,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	externalHorizontalPortraitAlgorithmJobResultFetchers := initExternalHorizontalPortraitAlgorithmJobResultFetchers()
+	externalHorizontalPortraitAlgorithmJobResultFetchers, err := initExternalHorizontalPortraitAlgorithmJobResultFetchers(ctx, mgr.GetClient(), mgr.GetCache(), hpReconcilerEventTrigger)
+	if err != nil {
+		setupLog.Error(err, "unable to init external horizontal portrait algorithm job result fetchers")
+		os.Exit(1)
+	}
 
 	if enableAdmissionWebhookServer {
 		if err := webhook.SetupWithManager(mgr); err != nil {
@@ -255,8 +263,9 @@ func main() {
 		Client:                             mgr.GetClient(),
 		Scheme:                             mgr.GetScheme(),
 		EventRecorder:                      mgr.GetEventRecorderFor(autoscaling.HorizontalPortraitControllerName),
+		EventTrigger:                       hpReconcilerEventTrigger,
 		PortraitGenerators:                 initPortraitGenerators(mgr.GetClient(), metricProvider, scaler),
-		ExternalAlgorithmJobControllers:    initExternalHorizontalPortraitAlgorithmJobControllers(),
+		ExternalAlgorithmJobControllers:    initExternalHorizontalPortraitAlgorithmJobControllers(mgr.GetClient()),
 		ExternalAlgorithmJobResultFetchers: externalHorizontalPortraitAlgorithmJobResultFetchers,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HorizontalPortrait")
@@ -292,10 +301,12 @@ func main() {
 	}
 
 	for sourceType, fetcher := range externalHorizontalPortraitAlgorithmJobResultFetchers {
-		if err := mgr.Add(fetcher); err != nil {
-			setupLog.Error(err, "failed to add external horizontal portrait algorithm job result fetcher to manager",
-				"sourceType", sourceType)
-			os.Exit(1)
+		if runnable, ok := fetcher.(manager.Runnable); ok {
+			if err := mgr.Add(runnable); err != nil {
+				setupLog.Error(err, "failed to add runnable external horizontal portrait algorithm job result fetcher to manager",
+					"sourceType", sourceType)
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -388,8 +399,12 @@ func initExternalHorizontalPortraitAlgorithmJobControllers() map[autoscalingv1al
 	return controllers
 }
 
-func initExternalHorizontalPortraitAlgorithmJobResultFetchers() map[autoscalingv1alpha1.PortraitAlgorithmResultSourceType]resultfetcher.Horizontal {
+func initExternalHorizontalPortraitAlgorithmJobResultFetchers(ctx context.Context, client client.Client, cache cache.Cache, eventTrigger chan event.GenericEvent) (map[autoscalingv1alpha1.PortraitAlgorithmResultSourceType]resultfetcher.Horizontal, error) {
 	fetchers := make(map[autoscalingv1alpha1.PortraitAlgorithmResultSourceType]resultfetcher.Horizontal)
-	// TODO
-	return fetchers
+	configMapInformer, err := cache.GetInformer(ctx, &corev1.ConfigMap{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ConfigMap informer from cache: %v", err)
+	}
+	fetchers[autoscalingv1alpha1.ConfigMapPortraitAlgorithmResultSourceType] = resultfetcher.NewConfigMapHorizontal(client, eventTrigger, configMapInformer)
+	return fetchers, nil
 }

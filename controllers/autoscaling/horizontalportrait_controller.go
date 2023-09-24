@@ -34,8 +34,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 	"github.com/traas-stack/kapacity/controllers"
@@ -54,6 +57,7 @@ type HorizontalPortraitReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	record.EventRecorder
+	EventTrigger chan event.GenericEvent
 
 	PortraitGenerators map[autoscalingv1alpha1.PortraitType]portraitgenerator.Interface
 
@@ -194,6 +198,7 @@ func (r *HorizontalPortraitReconciler) SetupWithManager(mgr ctrl.Manager) error 
 					return true
 				}),
 			)).
+		Watches(&source.Channel{Source: r.EventTrigger}, &handler.EnqueueRequestForObject{}).
 		WithOptions(controller.Options{
 			RecoverPanic: true,
 		}).
