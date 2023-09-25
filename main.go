@@ -29,6 +29,8 @@ import (
 	promapi "github.com/prometheus/client_golang/api"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
@@ -102,6 +104,8 @@ func main() {
 		probeAddr            string
 		enableLeaderElection bool
 		reconcileConcurrency int
+		objectLabelSelector  string
+		objectFieldSelector  string
 
 		enableAdmissionWebhookServer bool
 
@@ -119,6 +123,8 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
+	flag.StringVar(&objectLabelSelector, "object-label-selector", "", "The label selector to restrict controllers' list watch for objects.")
+	flag.StringVar(&objectFieldSelector, "object-field-selector", "", "The field selector to restrict controllers' list watch for objects.")
 	flag.BoolVar(&enableAdmissionWebhookServer, "serve-admission-webhooks", true, "Enable admission webhook servers.")
 	flag.StringVar(&grpcServerAddr, "grpc-server-bind-address", ":9090",
 		"The address the gRPC server binds to. Set 0 to disable the gRPC server.")
@@ -165,6 +171,25 @@ func main() {
 	cfg := ctrl.GetConfigOrDie()
 	rest.AddUserAgent(cfg, util.UserAgent)
 
+	var (
+		cacheObjectSelector = cache.ObjectSelector{}
+		err                 error
+	)
+	if objectLabelSelector != "" {
+		cacheObjectSelector.Label, err = labels.Parse(objectLabelSelector)
+		if err != nil {
+			setupLog.Error(err, "failed to parse object label selector", "selector", objectLabelSelector)
+			os.Exit(1)
+		}
+	}
+	if objectFieldSelector != "" {
+		cacheObjectSelector.Field, err = fields.ParseSelector(objectFieldSelector)
+		if err != nil {
+			setupLog.Error(err, "failed to parse object field selector", "selector", objectFieldSelector)
+			os.Exit(1)
+		}
+	}
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -184,6 +209,10 @@ func main() {
 				"IntelligentHorizontalPodAutoscaler.autoscaling.kapacitystack.io": reconcileConcurrency,
 				"HorizontalPortrait.autoscaling.kapacitystack.io":                 reconcileConcurrency,
 			},
+		},
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.DefaultSelector = cacheObjectSelector
+			return cache.New(config, opts)
 		},
 	})
 	if err != nil {
