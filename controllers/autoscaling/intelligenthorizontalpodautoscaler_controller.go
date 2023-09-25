@@ -57,9 +57,9 @@ type IntelligentHorizontalPodAutoscalerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	record.EventRecorder
+	EventTrigger chan event.GenericEvent
 
 	PortraitProviders map[autoscalingv1alpha1.HorizontalPortraitProviderType]portraitprovider.Horizontal
-	EventTrigger      chan event.GenericEvent
 
 	// portraitIdentifiersMap stores the last seen portrait identifiers of IHPAs.
 	// This is used for portrait id diff to find the removed portraits.
