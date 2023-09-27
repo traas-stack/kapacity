@@ -33,6 +33,15 @@ data:
               resource: pod
         containerLabel: container
       window: 3m
+    externalRules:
+    - seriesQuery: '{__name__="kube_pod_status_ready"}'
+      metricsQuery: sum(<<.Series>>{condition="true",<<.LabelMatchers>>})
+      name:
+        as: ready_pods_count
+      resources:
+        overrides:
+          namespace:
+            resource: namespace
     workloadPodNamePatterns:
     - group: apps
       kind: ReplicaSet
