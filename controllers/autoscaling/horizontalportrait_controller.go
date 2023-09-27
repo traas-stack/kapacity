@@ -78,6 +78,8 @@ type HorizontalPortraitReconciler struct {
 //+kubebuilder:rbac:groups=external.metrics.k8s.io,resources=*,verbs=get;list;watch
 //+kubebuilder:rbac:groups=*,resources=*/scale,verbs=get
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
+//+kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;patch;delete
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
