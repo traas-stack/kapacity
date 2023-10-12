@@ -1,0 +1,127 @@
+/*
+ Copyright 2023 The Kapacity Authors.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
+syntax = "proto3";
+import "google/protobuf/duration.proto";
+
+package io.kapacitystack.metric;
+option go_package = "github.com/traas-stack/kapacity/pkg/metric/service/api";
+
+message Series {
+  repeated Point points = 1;
+  map<string, string> labels = 2;
+  optional google.protobuf.Duration window = 3;
+}
+
+message Sample {
+  Point point = 1;
+  map<string, string> labels = 2;
+  optional google.protobuf.Duration window = 3;
+}
+
+message Point {
+  int64 timestamp = 1;
+  double value = 2;
+}
+
+message Query {
+  QueryType type = 1;
+  oneof query {
+    PodResourceQuery pod_resource = 2;
+    ContainerResourceQuery container_resource = 3;
+    WorkloadResourceQuery workload_resource = 4;
+    WorkloadContainerResourceQuery workload_container_resource = 5;
+    ObjectQuery object = 6;
+    ExternalQuery external = 7;
+    WorkloadExternalQuery workload_external = 8;
+  }
+}
+
+enum QueryType {
+  POD_RESOURCE = 0;
+  CONTAINER_RESOURCE = 1;
+  WORKLOAD_RESOURCE = 2;
+  WORKLOAD_CONTAINER_RESOURCE = 3;
+  OBJECT = 4;
+  EXTERNAL = 5;
+  WORKLOAD_EXTERNAL = 6;
+}
+
+message PodResourceQuery {
+  string namespace = 1;
+  oneof pod_identifier {
+    string name = 2;
+    string selector = 3;
+  }
+  string resource_name = 4;
+}
+
+message ContainerResourceQuery {
+  string namespace = 1;
+  oneof pod_identifier {
+    string name = 2;
+    string selector = 3;
+  }
+  string resource_name = 4;
+  string container_name = 5;
+}
+
+message WorkloadResourceQuery {
+  GroupKind group_kind = 1;
+  string namespace = 2;
+  string name = 3;
+  string resource_name = 4;
+}
+
+message WorkloadContainerResourceQuery {
+  GroupKind group_kind = 1;
+  string namespace = 2;
+  string name = 3;
+  string resource_name = 4;
+  string container_name = 5;
+}
+
+message ObjectQuery {
+  GroupKind group_kind = 1;
+  optional string namespace = 2;
+  oneof object_identifier {
+    string name = 3;
+    string selector = 4;
+  }
+  MetricIdentifier metric = 5;
+}
+
+message ExternalQuery {
+  optional string namespace = 1 ;
+  MetricIdentifier metric = 2;
+}
+
+message WorkloadExternalQuery {
+  GroupKind group_kind = 1;
+  string namespace = 2;
+  string name = 3;
+  MetricIdentifier metric = 4;
+}
+
+message GroupKind {
+  string group = 1;
+  string kind = 2;
+}
+
+message MetricIdentifier {
+  string name = 1;
+  optional string selector = 2;
+}
