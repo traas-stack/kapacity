@@ -21,19 +21,19 @@ import (
 	"fmt"
 
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
-	promadaptercfg "sigs.k8s.io/prometheus-adapter/pkg/config"
 	"sigs.k8s.io/prometheus-adapter/pkg/naming"
 )
 
 // resourceQuery represents query information for querying resource metrics for some resource, like CPU or memory.
 type resourceQuery struct {
-	ContainerQuery naming.MetricsQuery
-	ContainerLabel string
+	ContainerQuery              naming.MetricsQuery
+	ReadyPodsOnlyContainerQuery naming.MetricsQuery
+	ContainerLabel              string
 }
 
 // newResourceQuery instantiates query information from the give configuration rule for querying
 // resource metrics for some resource.
-func newResourceQuery(cfg promadaptercfg.ResourceRule, mapper apimeta.RESTMapper) (*resourceQuery, error) {
+func newResourceQuery(cfg ResourceRule, mapper apimeta.RESTMapper) (*resourceQuery, error) {
 	converter, err := naming.NewResourceConverter(cfg.Resources.Template, cfg.Resources.Overrides, mapper)
 	if err != nil {
 		return nil, fmt.Errorf("unable to construct label-resource converter: %v", err)
@@ -44,8 +44,14 @@ func newResourceQuery(cfg promadaptercfg.ResourceRule, mapper apimeta.RESTMapper
 		return nil, fmt.Errorf("unable to construct container metrics query: %v", err)
 	}
 
+	readyPodsOnlyContainerQuery, err := naming.NewMetricsQuery(cfg.ReadyPodsOnlyContainerQuery, converter)
+	if err != nil {
+		return nil, fmt.Errorf("unable to construct ready pods only container metrics query: %v", err)
+	}
+
 	return &resourceQuery{
-		ContainerQuery: containerQuery,
-		ContainerLabel: cfg.ContainerLabel,
+		ContainerQuery:              containerQuery,
+		ReadyPodsOnlyContainerQuery: readyPodsOnlyContainerQuery,
+		ContainerLabel:              cfg.ContainerLabel,
 	}, nil
 }

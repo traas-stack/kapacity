@@ -51,9 +51,9 @@ var (
 		})).Build()
 	fakeDynamicClient = dynamicfake.NewSimpleDynamicClient(scheme)
 	metricsConfig     = &MetricsDiscoveryConfig{
-		MetricsDiscoveryConfig: promadaptercfg.MetricsDiscoveryConfig{
-			ResourceRules: &promadaptercfg.ResourceRules{
-				CPU: promadaptercfg.ResourceRule{
+		ResourceRules: &ResourceRules{
+			CPU: ResourceRule{
+				ResourceRule: promadaptercfg.ResourceRule{
 					ContainerQuery: `sum by (<<.GroupBy>>) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m]))`,
 					Resources: promadaptercfg.ResourceMapping{
 						Overrides: map[string]promadaptercfg.GroupResource{
@@ -63,7 +63,10 @@ var (
 					},
 					ContainerLabel: "container",
 				},
-				Memory: promadaptercfg.ResourceRule{
+				ReadyPodsOnlyContainerQuery: `sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (pod) group_left sum by (pod) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m])))`,
+			},
+			Memory: ResourceRule{
+				ResourceRule: promadaptercfg.ResourceRule{
 					ContainerQuery: `sum by (<<.GroupBy>>) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>})`,
 					Resources: promadaptercfg.ResourceMapping{
 						Overrides: map[string]promadaptercfg.GroupResource{
@@ -73,7 +76,45 @@ var (
 					},
 					ContainerLabel: "container",
 				},
-				Window: prommodel.Duration(3 * time.Minute),
+				ReadyPodsOnlyContainerQuery: `sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (pod) group_left sum by (pod) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>}))`,
+			},
+			Window: prommodel.Duration(3 * time.Minute),
+		},
+		ExternalRules: []promadaptercfg.DiscoveryRule{
+			{
+				SeriesQuery:  `{__name__="kube_pod_status_ready"}`,
+				MetricsQuery: `sum(<<.Series>>{condition="true",<<.LabelMatchers>>})`,
+				Name: promadaptercfg.NameMapping{
+					As: "ready_pods_count",
+				},
+				Resources: promadaptercfg.ResourceMapping{
+					Overrides: map[string]promadaptercfg.GroupResource{
+						"namespace": {Resource: "namespace"},
+					},
+				},
+			},
+		},
+		WorkloadPodNamePatterns: []WorkloadPodNamePattern{
+			{
+				GroupKind: GroupKind{
+					Group: "app",
+					Kind:  "ReplicaSet",
+				},
+				Pattern: `^%s-[a-z0-9]+$`,
+			},
+			{
+				GroupKind: GroupKind{
+					Group: "app",
+					Kind:  "Deployment",
+				},
+				Pattern: `^%s-[a-z0-9]+-[a-z0-9]+$`,
+			},
+			{
+				GroupKind: GroupKind{
+					Group: "app",
+					Kind:  "StatefulSet",
+				},
+				Pattern: `^%s-[0-9]+$`,
 			},
 		},
 	}
