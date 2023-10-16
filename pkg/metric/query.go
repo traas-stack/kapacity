@@ -74,10 +74,11 @@ type ContainerResourceQuery struct {
 }
 
 type WorkloadResourceQuery struct {
-	GroupKind    schema.GroupKind
-	Namespace    string
-	Name         string
-	ResourceName corev1.ResourceName
+	GroupKind     schema.GroupKind
+	Namespace     string
+	Name          string
+	ResourceName  corev1.ResourceName
+	ReadyPodsOnly bool
 }
 
 type WorkloadContainerResourceQuery struct {

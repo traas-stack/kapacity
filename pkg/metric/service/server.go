@@ -150,9 +150,10 @@ func convertAPIQueryToInternalQuery(in *api.Query) (*metric.Query, error) {
 				Group: workloadResourceQuery.GetGroupKind().GetGroup(),
 				Kind:  workloadResourceQuery.GetGroupKind().GetKind(),
 			},
-			Namespace:    workloadResourceQuery.GetNamespace(),
-			Name:         workloadResourceQuery.GetName(),
-			ResourceName: corev1.ResourceName(workloadResourceQuery.GetResourceName()),
+			Namespace:     workloadResourceQuery.GetNamespace(),
+			Name:          workloadResourceQuery.GetName(),
+			ResourceName:  corev1.ResourceName(workloadResourceQuery.GetResourceName()),
+			ReadyPodsOnly: workloadResourceQuery.GetReadyPodsOnly(),
 		}
 	case metric.WorkloadContainerResourceQueryType:
 		workloadContainerResourceQuery := in.GetWorkloadContainerResource()
@@ -162,9 +163,10 @@ func convertAPIQueryToInternalQuery(in *api.Query) (*metric.Query, error) {
 					Group: workloadContainerResourceQuery.GetGroupKind().GetGroup(),
 					Kind:  workloadContainerResourceQuery.GetGroupKind().GetKind(),
 				},
-				Namespace:    workloadContainerResourceQuery.GetNamespace(),
-				Name:         workloadContainerResourceQuery.GetName(),
-				ResourceName: corev1.ResourceName(workloadContainerResourceQuery.GetResourceName()),
+				Namespace:     workloadContainerResourceQuery.GetNamespace(),
+				Name:          workloadContainerResourceQuery.GetName(),
+				ResourceName:  corev1.ResourceName(workloadContainerResourceQuery.GetResourceName()),
+				ReadyPodsOnly: workloadContainerResourceQuery.GetReadyPodsOnly(),
 			},
 			ContainerName: workloadContainerResourceQuery.GetContainerName(),
 		}

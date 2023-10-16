@@ -21,15 +21,34 @@ import (
 	"io"
 	"os"
 
+	prommodel "github.com/prometheus/common/model"
 	"gopkg.in/yaml.v2"
 	promadaptercfg "sigs.k8s.io/prometheus-adapter/pkg/config"
 )
 
 // MetricsDiscoveryConfig is an extension of promadaptercfg.MetricsDiscoveryConfig
-// which includes configuration for workload pod name patterns.
+// which includes extra configurations for advanced metrics queries used by Kapacity.
 type MetricsDiscoveryConfig struct {
-	promadaptercfg.MetricsDiscoveryConfig `json:",inline" yaml:",inline"`
-	WorkloadPodNamePatterns               []WorkloadPodNamePattern `json:"workloadPodNamePatterns,omitempty" yaml:"workloadPodNamePatterns,omitempty"`
+	ResourceRules           *ResourceRules                 `json:"resourceRules,omitempty" yaml:"resourceRules,omitempty"`
+	Rules                   []promadaptercfg.DiscoveryRule `json:"rules,omitempty" yaml:"rules,omitempty"`
+	ExternalRules           []promadaptercfg.DiscoveryRule `json:"externalRules,omitempty" yaml:"externalRules,omitempty"`
+	WorkloadPodNamePatterns []WorkloadPodNamePattern       `json:"workloadPodNamePatterns,omitempty" yaml:"workloadPodNamePatterns,omitempty"`
+}
+
+// ResourceRules is an extension of promadaptercfg.ResourceRules
+// which includes extra configurations for advanced metrics queries used by Kapacity.
+type ResourceRules struct {
+	CPU    ResourceRule       `json:"cpu" yaml:"cpu"`
+	Memory ResourceRule       `json:"memory" yaml:"memory"`
+	Window prommodel.Duration `json:"window" yaml:"window"`
+}
+
+// ResourceRule is an extension of promadaptercfg.ResourceRule
+// which includes extra configurations for advanced metrics queries used by Kapacity.
+type ResourceRule struct {
+	promadaptercfg.ResourceRule `json:",inline" yaml:",inline"`
+	// ReadyPodsOnlyContainerQuery is the query used to fetch the metrics for containers of ready Pods only.
+	ReadyPodsOnlyContainerQuery string `json:"readyPodsOnlyContainerQuery" yaml:"readyPodsOnlyContainerQuery"`
 }
 
 // WorkloadPodNamePattern describes the pod name pattern of a specific kind of workload.

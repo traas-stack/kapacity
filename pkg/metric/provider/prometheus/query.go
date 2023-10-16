@@ -119,7 +119,12 @@ func (p *MetricProvider) buildWorkloadResourcePromQuery(wrq *metric.WorkloadReso
 	// to let prom adapter build a regex match promql selector.
 	r, _ := labels.NewRequirement(metric.LabelPodName, selection.In, []string{podNamePattern})
 	selector = selector.Add(*r)
-	q, err := rq.ContainerQuery.BuildExternal("", wrq.Namespace, metric.LabelNamespace, nil, selector)
+
+	containerQuery := rq.ContainerQuery
+	if wrq.ReadyPodsOnly {
+		containerQuery = rq.ReadyPodsOnlyContainerQuery
+	}
+	q, err := containerQuery.BuildExternal("", wrq.Namespace, metric.LabelNamespace, nil, selector)
 	return string(q), &p.resourceQueryWindow, err
 }
 
