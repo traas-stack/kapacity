@@ -348,8 +348,8 @@ class Estimator(object):
         self.device = torch.device(
             'cuda'
             if torch.cuda.is_available()
-            # else 'mps'
-            # if torch.backends.mps.is_available()
+            else 'mps'
+            if torch.backends.mps.is_available()
             else 'cpu'
         )
         self.logger.info(f'Using device: {self.device}')
@@ -363,7 +363,7 @@ class Estimator(object):
 
     def load_model(self, model_path):
         best_model_path = model_path + '/' + 'checkpoint.pth'
-        self.model.load_state_dict(torch.load(best_model_path))
+        self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
 
     def get_data(self,
                  flag,
