@@ -137,6 +137,7 @@ class Estimator(object):
             self.nan_pct = 1 - (cnt_col_aft / cnt_col_ori)
 
         df.dropna(axis=0, subset=df.columns, how='any', inplace=True)
+        df = df.loc[df[self.replicas_col] != 0]
 
         self.logger.info(f'checkout after filtering NaN: '
                          f'NUM-{len(df.columns)}-SHAPE-{str(df.shape)}-NAME-{str(df.columns.tolist())}')
