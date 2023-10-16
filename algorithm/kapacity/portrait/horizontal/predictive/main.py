@@ -210,6 +210,7 @@ def fetch_metrics_history(args, env, hp_cr):
 def fetch_metrics(args, env, metric, scale_target, start, end):
     metric_type = metric['type']
     if metric_type == 'Resource':
+        # FIXME: we should fetch resource history for ready pods only to ensure the accuracy of replicas estimation
         return fetch_resource_metric_history(args=args,
                                              namespace=env.namespace,
                                              metric=metric,
@@ -217,6 +218,7 @@ def fetch_metrics(args, env, metric, scale_target, start, end):
                                              start=start,
                                              end=end)
     elif metric_type == 'ContainerResource':
+        # FIXME: ditto
         return fetch_container_resource_metric_history(args=args,
                                                        namespace=env.namespace,
                                                        metric=metric,
@@ -258,6 +260,7 @@ def fetch_workload_pod_request(namespace, resource_name, scale_target):
     app_api = client.AppsV1Api()
     core_api = client.CoreV1Api()
 
+    # TODO: use general scale api to support arbitrary workload
     if scale_target['kind'] == 'ReplicaSet':
         scale = app_api.read_namespaced_replica_set_scale(namespace=namespace, name=scale_target['name'])
     elif scale_target['kind'] == 'Deployment':
@@ -269,7 +272,7 @@ def fetch_workload_pod_request(namespace, resource_name, scale_target):
 
     ret = core_api.list_namespaced_pod(namespace=namespace, label_selector=scale.status.selector)
     if len(ret.items) == 0:
-        raise RuntimeError('CanNotFoundPod')
+        raise RuntimeError('PodNotFound')
 
     total_request = 0
     for container in ret.items[0].to_dict()['spec']['containers']:
