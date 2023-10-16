@@ -28,6 +28,7 @@ from sklearn.model_selection import train_test_split
 
 class Estimator(object):
     def __init__(self,
+                 logger,
                  data,
                  data_pred,
                  time_col,
@@ -36,7 +37,7 @@ class Estimator(object):
                  traffic_cols,
                  resource_target,
                  time_delta_hours,
-                 logger):
+                 test_dataset_size_in_seconds):
         self.logger = logger
 
         self.time_col = time_col
@@ -49,6 +50,7 @@ class Estimator(object):
         self.resource_target_lst_rf = list()
 
         self.time_delta_hours = time_delta_hours
+        self.test_dataset_size_in_seconds = test_dataset_size_in_seconds
 
         self.data = data
         self.nan_max = None
@@ -153,8 +155,8 @@ class Estimator(object):
         df['minute'] = df['datetime'].dt.minute + df['datetime'].dt.hour * 60
 
         df['traintest_flag'] = 'ruleout'
-        df.loc[(df[self.time_col] < (df[self.time_col].max() - 86400)), 'traintest_flag'] = 'train'
-        df.loc[(df[self.time_col] >= (df[self.time_col].max() - 86400)), 'traintest_flag'] = 'test'
+        df.loc[(df[self.time_col] < (df[self.time_col].max() - self.test_dataset_size_in_seconds)), 'traintest_flag'] = 'train'
+        df.loc[(df[self.time_col] >= (df[self.time_col].max() - self.test_dataset_size_in_seconds)), 'traintest_flag'] = 'test'
 
         self.data_train = df[df['traintest_flag'] == 'train']
         self.data_test = df[df['traintest_flag'] == 'test']
@@ -636,15 +638,16 @@ def estimate(data,
              replicas_col,
              traffic_cols,
              resource_target,
-             time_delta_hours):
+             time_delta_hours,
+             test_dataset_size_in_seconds=86400):
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s: %(message)s')
     logger = logging.getLogger()
 
     logger.info('********* start replicas estimation *********')
     st10 = time.time()
-    estimator = Estimator(data, data_pred, time_col, resource_col, replicas_col,
-                          traffic_cols, resource_target, time_delta_hours, logger)
+    estimator = Estimator(logger, data, data_pred, time_col, resource_col, replicas_col, traffic_cols, resource_target,
+                          time_delta_hours, test_dataset_size_in_seconds)
     logger.info(f'********* initialization cost time: {time.time() - st10} *********')
 
     st10 = time.time()

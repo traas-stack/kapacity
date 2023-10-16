@@ -85,6 +85,9 @@ def parse_args():
                         required=True)
     parser.add_argument('--re-time-delta-hours', help='time zone offset for replicas estimation model',
                         required=True)
+    parser.add_argument('--re-test-dataset-size-in-seconds',
+                        help='size of test dataset in seconds for replicas estimation model',
+                        required=False, default=86400)
     parser.add_argument('--scaling-freq', help='frequency of scaling, the duration should be larger than tsf-freq',
                         required=True)
     args = parser.parse_args()
@@ -133,7 +136,8 @@ def predict_replicas(args, metric_ctx, pred_traffics):
                               'replicas',
                               traffic_col,
                               metric_ctx.resource_target,
-                              int(args.re_time_delta_hours))
+                              int(args.re_time_delta_hours),
+                              int(args.re_test_dataset_size_in_seconds))
     return pred
 
 
