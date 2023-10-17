@@ -312,7 +312,8 @@ def fetch_resource_metric_history(args, namespace, metric, scale_target, start, 
     workload_resource = metric_pb.WorkloadResourceQuery(group_kind=group_kind,
                                                         namespace=namespace,
                                                         name=name,
-                                                        resource_name=resource_name)
+                                                        resource_name=resource_name,
+                                                        ready_pods_only=True)
     query = metric_pb.Query(type=metric_pb.WORKLOAD_RESOURCE,
                             workload_resource=workload_resource)
     return query_metrics(args=args, query=query, start=start, end=end)
@@ -327,7 +328,8 @@ def fetch_container_resource_metric_history(args, namespace, metric, scale_targe
                                                                            namespace=namespace,
                                                                            name=name,
                                                                            resource_name=resource_name,
-                                                                           container_name=container_name)
+                                                                           container_name=container_name,
+                                                                           ready_pods_only=True)
     query = metric_pb.Query(type=metric_pb.WORKLOAD_CONTAINER_RESOURCE,
                             workload_container_resource=workload_container_resource)
     return query_metrics(args=args, query=query, start=start, end=end)

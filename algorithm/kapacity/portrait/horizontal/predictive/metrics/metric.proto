@@ -84,6 +84,7 @@ message WorkloadResourceQuery {
   string namespace = 2;
   string name = 3;
   string resource_name = 4;
+  bool ready_pods_only = 5;
 }
 
 message WorkloadContainerResourceQuery {
@@ -92,6 +93,7 @@ message WorkloadContainerResourceQuery {
   string name = 3;
   string resource_name = 4;
   string container_name = 5;
+  bool ready_pods_only = 6;
 }
 
 message ObjectQuery {
