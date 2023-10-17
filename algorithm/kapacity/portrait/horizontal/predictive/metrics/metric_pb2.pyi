@@ -113,30 +113,34 @@ class ContainerResourceQuery(_message.Message):
     def __init__(self, namespace: _Optional[str] = ..., name: _Optional[str] = ..., selector: _Optional[str] = ..., resource_name: _Optional[str] = ..., container_name: _Optional[str] = ...) -> None: ...
 
 class WorkloadResourceQuery(_message.Message):
-    __slots__ = ["group_kind", "namespace", "name", "resource_name"]
+    __slots__ = ["group_kind", "namespace", "name", "resource_name", "ready_pods_only"]
     GROUP_KIND_FIELD_NUMBER: _ClassVar[int]
     NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_NAME_FIELD_NUMBER: _ClassVar[int]
+    READY_PODS_ONLY_FIELD_NUMBER: _ClassVar[int]
     group_kind: GroupKind
     namespace: str
     name: str
     resource_name: str
-    def __init__(self, group_kind: _Optional[_Union[GroupKind, _Mapping]] = ..., namespace: _Optional[str] = ..., name: _Optional[str] = ..., resource_name: _Optional[str] = ...) -> None: ...
+    ready_pods_only: bool
+    def __init__(self, group_kind: _Optional[_Union[GroupKind, _Mapping]] = ..., namespace: _Optional[str] = ..., name: _Optional[str] = ..., resource_name: _Optional[str] = ..., ready_pods_only: bool = ...) -> None: ...
 
 class WorkloadContainerResourceQuery(_message.Message):
-    __slots__ = ["group_kind", "namespace", "name", "resource_name", "container_name"]
+    __slots__ = ["group_kind", "namespace", "name", "resource_name", "container_name", "ready_pods_only"]
     GROUP_KIND_FIELD_NUMBER: _ClassVar[int]
     NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_NAME_FIELD_NUMBER: _ClassVar[int]
     CONTAINER_NAME_FIELD_NUMBER: _ClassVar[int]
+    READY_PODS_ONLY_FIELD_NUMBER: _ClassVar[int]
     group_kind: GroupKind
     namespace: str
     name: str
     resource_name: str
     container_name: str
-    def __init__(self, group_kind: _Optional[_Union[GroupKind, _Mapping]] = ..., namespace: _Optional[str] = ..., name: _Optional[str] = ..., resource_name: _Optional[str] = ..., container_name: _Optional[str] = ...) -> None: ...
+    ready_pods_only: bool
+    def __init__(self, group_kind: _Optional[_Union[GroupKind, _Mapping]] = ..., namespace: _Optional[str] = ..., name: _Optional[str] = ..., resource_name: _Optional[str] = ..., container_name: _Optional[str] = ..., ready_pods_only: bool = ...) -> None: ...
 
 class ObjectQuery(_message.Message):
     __slots__ = ["group_kind", "namespace", "name", "selector", "metric"]
