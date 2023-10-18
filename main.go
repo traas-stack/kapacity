@@ -94,6 +94,12 @@ type promConfig struct {
 	MetricsRelistInterval, MetricsMaxAge time.Duration
 }
 
+type algorithmJobConfig struct {
+	Namespace                        string
+	DefaultMetricsServerAddr         string
+	DefaultImagePredictiveHorizontal string
+}
+
 func main() {
 	var (
 		logPath             string
@@ -113,6 +119,8 @@ func main() {
 
 		metricProviderType string
 		promConfig         promConfig
+
+		algorithmJobConfig algorithmJobConfig
 	)
 	flag.StringVar(&logPath, "log-path", "", "The path to write log files. Omit to disable logging to file.")
 	flag.DurationVar(&logFileMaxAge, "log-file-max-age", 7*24*time.Hour, "The max age of the log files.")
@@ -141,6 +149,11 @@ func main() {
 		"The interval at which to re-list the set of all available metrics from Prometheus.")
 	flag.DurationVar(&promConfig.MetricsMaxAge, "prometheus-metrics-max-age", 0,
 		"The period for which to query the set of available metrics from Prometheus. If not set, it defaults to prometheus-metrics-relist-interval.")
+	flag.StringVar(&algorithmJobConfig.Namespace, "algorithm-job-namespace", "", "The namespace where algorithm jobs should run in.")
+	flag.StringVar(&algorithmJobConfig.DefaultMetricsServerAddr, "algorithm-job-default-metrics-server-addr", "",
+		"The default metrics server address to inject to env of algorithm jobs.")
+	flag.StringVar(&algorithmJobConfig.DefaultImagePredictiveHorizontal, "algorithm-job-default-image-predictive-horizontal", "",
+		"The default image for algorithm jobs of predictive horizontal portrait.")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
@@ -256,6 +269,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	externalHorizontalPortraitAlgorithmJobControllers, err := initExternalHorizontalPortraitAlgorithmJobControllers(mgr.GetClient(), algorithmJobConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to init external horizontal portrait algorithm job controllers")
+		os.Exit(1)
+	}
 	externalHorizontalPortraitAlgorithmJobResultFetchers, err := initExternalHorizontalPortraitAlgorithmJobResultFetchers(ctx, mgr.GetClient(), mgr.GetCache(), hpReconcilerEventTrigger)
 	if err != nil {
 		setupLog.Error(err, "unable to init external horizontal portrait algorithm job result fetchers")
@@ -294,7 +312,7 @@ func main() {
 		EventRecorder:                      mgr.GetEventRecorderFor(autoscaling.HorizontalPortraitControllerName),
 		EventTrigger:                       hpReconcilerEventTrigger,
 		PortraitGenerators:                 initPortraitGenerators(mgr.GetClient(), metricProvider, scaler),
-		ExternalAlgorithmJobControllers:    initExternalHorizontalPortraitAlgorithmJobControllers(mgr.GetClient()),
+		ExternalAlgorithmJobControllers:    externalHorizontalPortraitAlgorithmJobControllers,
 		ExternalAlgorithmJobResultFetchers: externalHorizontalPortraitAlgorithmJobResultFetchers,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HorizontalPortrait")
@@ -422,10 +440,15 @@ func initPortraitGenerators(client client.Client, metricProvider metricprovider.
 	return generators
 }
 
-func initExternalHorizontalPortraitAlgorithmJobControllers(client client.Client) map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal {
+func initExternalHorizontalPortraitAlgorithmJobControllers(client client.Client, config algorithmJobConfig) (map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal, error) {
+	if config.Namespace == "" {
+		return nil, fmt.Errorf("shall set namespace for algorithm jobs")
+	}
 	controllers := make(map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal)
-	controllers[autoscalingv1alpha1.CronJobPortraitAlgorithmJobType] = jobcontroller.NewCronJobHorizontal(client)
-	return controllers
+	controllers[autoscalingv1alpha1.CronJobPortraitAlgorithmJobType] = jobcontroller.NewCronJobHorizontal(client, config.Namespace, config.DefaultMetricsServerAddr, map[autoscalingv1alpha1.PortraitType]string{
+		autoscalingv1alpha1.PredictivePortraitType: config.DefaultImagePredictiveHorizontal,
+	})
+	return controllers, nil
 }
 
 func initExternalHorizontalPortraitAlgorithmJobResultFetchers(ctx context.Context, client client.Client, cache cache.Cache, eventTrigger chan event.GenericEvent) (map[autoscalingv1alpha1.PortraitAlgorithmResultSourceType]resultfetcher.Horizontal, error) {
