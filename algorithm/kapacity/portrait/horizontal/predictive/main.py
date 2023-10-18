@@ -30,8 +30,8 @@ import kapacity.portrait.horizontal.predictive.metrics.provider_pb2_grpc as prov
 
 
 class EnvInfo:
+    metrics_server_addr = None
     namespace = None
-    pod_name = None
     hp_name = None
 
 
@@ -74,8 +74,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description='args of Kapacity predictive horizontal portrait algorithm job')
     parser.add_argument('--kubeconfig', help='location of kubeconfig file, will use in-cluster client if not set',
                         required=False)
-    parser.add_argument('--metrics-server-addr', help='address of the gRPC metrics provider server',
-                        required=True)
     parser.add_argument('--tsf-model-path',
                         help='dir path containing related files of the time series forecasting model',
                         required=True, default='/opt/kapacity/timeseries/forcasting/model')
@@ -96,9 +94,9 @@ def parse_args():
 
 def read_env():
     env = EnvInfo()
-    env.namespace = os.getenv('POD_NAMESPACE')
-    env.pod_name = os.getenv('POD_NAME')
-    env.hp_name = env.pod_name[0:env.pod_name.rindex('-', 0, env.pod_name.rindex('-'))]
+    env.metrics_server_addr = os.getenv('METRICS_SERVER_ADDR')
+    env.namespace = os.getenv('HP_NAMESPACE')
+    env.hp_name = os.getenv('HP_NAME')
     return env
 
 
@@ -183,16 +181,14 @@ def fetch_metrics_history(args, env, hp_cr):
                 resource = metric['containerResource']
             else:
                 raise RuntimeError('MetricTypeError')
-
-            resource_history = fetch_metrics(args, env, metric, scale_target, start, end)
+            resource_history = fetch_metrics(env, metric, scale_target, start, end)
             metric_ctx.resource_name = resource['name']
             metric_ctx.resource_target = compute_resource_target(env.namespace, resource, scale_target)
             metric_ctx.resource_history = resource_history.rename(columns={'value': resource['name']})
         elif i == 1:
             if metric_type != 'External':
                 raise RuntimeError('MetricTypeError')
-
-            replica_history = fetch_replicas_metric_history(args, env.namespace, metric, scale_target, start, end)
+            replica_history = fetch_replicas_metric_history(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
             metric_ctx.replicas_history = replica_history.rename(columns={'value': 'replicas'})
         else:
             if metric_type == 'Object':
@@ -201,25 +197,23 @@ def fetch_metrics_history(args, env, hp_cr):
                 metric_name = metric['external']['metric']['name']
             else:
                 raise RuntimeError('MetricTypeError')
-            traffic_history = fetch_metrics(args, env, metric, scale_target, start, end)
+            traffic_history = fetch_metrics(env, metric, scale_target, start, end)
             metric_ctx.traffics_history_dict[metric_name] = traffic_history
 
     return metric_ctx
 
 
-def fetch_metrics(args, env, metric, scale_target, start, end):
+def fetch_metrics(env, metric, scale_target, start, end):
     metric_type = metric['type']
     if metric_type == 'Resource':
-        # FIXME: we should fetch resource history for ready pods only to ensure the accuracy of replicas estimation
-        return fetch_resource_metric_history(args=args,
+        return fetch_resource_metric_history(addr=env.metrics_server_addr,
                                              namespace=env.namespace,
                                              metric=metric,
                                              scale_target=scale_target,
                                              start=start,
                                              end=end)
     elif metric_type == 'ContainerResource':
-        # FIXME: ditto
-        return fetch_container_resource_metric_history(args=args,
+        return fetch_container_resource_metric_history(addr=env.metrics_server_addr,
                                                        namespace=env.namespace,
                                                        metric=metric,
                                                        scale_target=scale_target,
@@ -229,13 +223,13 @@ def fetch_metrics(args, env, metric, scale_target, start, end):
         # TODO: support pods metric type
         raise RuntimeError('UnsupportedMetricType')
     elif metric_type == 'Object':
-        return fetch_object_metric_history(args=args,
+        return fetch_object_metric_history(addr=env.metrics_server_addr,
                                            namespace=env.namespace,
                                            metric=metric,
                                            start=start,
                                            end=end)
     elif metric_type == 'External':
-        return fetch_external_metric_history(args=args,
+        return fetch_external_metric_history(addr=env.metrics_server_addr,
                                              namespace=env.namespace,
                                              metric=metric,
                                              start=start,
@@ -293,7 +287,7 @@ def compute_history_range(args):
     return start, end
 
 
-def fetch_replicas_metric_history(args, namespace, metric, scale_target, start, end):
+def fetch_replicas_metric_history(addr, namespace, metric, scale_target, start, end):
     external = metric['external']
     metric_identifier = build_metric_identifier(external['metric'])
     name, group_kind = get_obj_name_and_group_kind(scale_target)
@@ -303,10 +297,10 @@ def fetch_replicas_metric_history(args, namespace, metric, scale_target, start, 
                                                         metric=metric_identifier)
     query = metric_pb.Query(type=metric_pb.WORKLOAD_EXTERNAL,
                             workload_external=workload_external)
-    return query_metrics(args=args, query=query, start=start, end=end)
+    return query_metrics(addr=addr, query=query, start=start, end=end)
 
 
-def fetch_resource_metric_history(args, namespace, metric, scale_target, start, end):
+def fetch_resource_metric_history(addr, namespace, metric, scale_target, start, end):
     resource_name = metric['resource']['name']
     name, group_kind = get_obj_name_and_group_kind(scale_target)
     workload_resource = metric_pb.WorkloadResourceQuery(group_kind=group_kind,
@@ -316,10 +310,10 @@ def fetch_resource_metric_history(args, namespace, metric, scale_target, start, 
                                                         ready_pods_only=True)
     query = metric_pb.Query(type=metric_pb.WORKLOAD_RESOURCE,
                             workload_resource=workload_resource)
-    return query_metrics(args=args, query=query, start=start, end=end)
+    return query_metrics(addr=addr, query=query, start=start, end=end)
 
 
-def fetch_container_resource_metric_history(args, namespace, metric, scale_target, start, end):
+def fetch_container_resource_metric_history(addr, namespace, metric, scale_target, start, end):
     container_resource = metric['containerResource']
     resource_name = container_resource['name']
     container_name = container_resource['container']
@@ -332,10 +326,10 @@ def fetch_container_resource_metric_history(args, namespace, metric, scale_targe
                                                                            ready_pods_only=True)
     query = metric_pb.Query(type=metric_pb.WORKLOAD_CONTAINER_RESOURCE,
                             workload_container_resource=workload_container_resource)
-    return query_metrics(args=args, query=query, start=start, end=end)
+    return query_metrics(addr=addr, query=query, start=start, end=end)
 
 
-def fetch_object_metric_history(args, namespace, metric, start, end):
+def fetch_object_metric_history(addr, namespace, metric, start, end):
     obj = metric['object']
     metric_identifier = build_metric_identifier(obj['metric'])
     name, group_kind = get_obj_name_and_group_kind(obj['describedObject'])
@@ -345,17 +339,17 @@ def fetch_object_metric_history(args, namespace, metric, start, end):
                                          metric=metric_identifier)
     query = metric_pb.Query(type=metric_pb.OBJECT,
                             object=object_query)
-    return query_metrics(args=args, query=query, start=start, end=end)
+    return query_metrics(addr=addr, query=query, start=start, end=end)
 
 
-def fetch_external_metric_history(args, namespace, metric, start, end):
+def fetch_external_metric_history(addr, namespace, metric, start, end):
     external = metric['external']
     metric_identifier = build_metric_identifier(external['metric'])
     external_query = metric_pb.ExternalQuery(namespace=namespace,
                                              metric=metric_identifier)
     query = metric_pb.Query(type=metric_pb.EXTERNAL,
                             external=external_query)
-    return query_metrics(args=args, query=query, start=start, end=end)
+    return query_metrics(addr=addr, query=query, start=start, end=end)
 
 
 def build_metric_identifier(metric):
@@ -395,14 +389,14 @@ def time_period_to_minutes(time_period):
     return minutes
 
 
-def query_metrics(args, query, start, end):
+def query_metrics(addr, query, start, end):
     step = duration_pb2.Duration()
     step.FromSeconds(60)
     query_request = provider_pb.QueryRequest(query=query,
                                              start=start,
                                              end=end,
                                              step=step)
-    with grpc.insecure_channel(args.metrics_server_addr) as channel:
+    with grpc.insecure_channel(addr) as channel:
         stub = provider_pb_grpc.ProviderServiceStub(channel)
         response = stub.Query(query_request)
     return convert_metric_series_to_dataframe(response.series)
