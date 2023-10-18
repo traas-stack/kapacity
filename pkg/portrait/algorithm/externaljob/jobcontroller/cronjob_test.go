@@ -33,6 +33,14 @@ import (
 	autoscalingv1alpha1 "github.com/traas-stack/kapacity/apis/autoscaling/v1alpha1"
 )
 
+const (
+	cronJobNamespace = "cron-job-test"
+
+	hpNamespace = "test"
+	hpName      = "test-predictive"
+	cronJobName = hpNamespace + "-" + hpName
+)
+
 var (
 	scheme = runtime.NewScheme()
 )
@@ -47,8 +55,8 @@ func TestCronJobHorizontal_Create(t *testing.T) {
 	ctx := context.Background()
 	horizontalPortrait := &autoscalingv1alpha1.HorizontalPortrait{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "test",
-			Name:      "test-predictive",
+			Namespace: hpNamespace,
+			Name:      hpName,
 		},
 	}
 
@@ -67,18 +75,18 @@ func TestCronJobHorizontal_Create(t *testing.T) {
 		},
 	}
 
-	cronJobHorizontal := NewCronJobHorizontal(fakeClient)
+	cronJobHorizontal := NewCronJobHorizontal(fakeClient, cronJobNamespace, "", nil)
 	err := cronJobHorizontal.UpdateJob(ctx, horizontalPortrait, cfg)
 	assert.Nil(t, err)
 
 	cronJob := &batchv1.CronJob{}
-	_ = fakeClient.Get(ctx, types.NamespacedName{Namespace: horizontalPortrait.Namespace, Name: horizontalPortrait.Name}, cronJob)
+	_ = fakeClient.Get(ctx, types.NamespacedName{Namespace: cronJobNamespace, Name: cronJobName}, cronJob)
 	assert.NotNil(t, cronJob)
 
 	err = cronJobHorizontal.CleanupJob(ctx, horizontalPortrait)
 	assert.Nil(t, err)
 
-	err = fakeClient.Get(ctx, types.NamespacedName{Namespace: horizontalPortrait.Namespace, Name: horizontalPortrait.Name}, cronJob)
+	err = fakeClient.Get(ctx, types.NamespacedName{Namespace: cronJobNamespace, Name: cronJobName}, cronJob)
 	assert.True(t, apierrors.IsNotFound(err))
 }
 
@@ -87,8 +95,8 @@ func TestCronJobHorizontal_Update(t *testing.T) {
 	ctx := context.Background()
 	horizontalPortrait := &autoscalingv1alpha1.HorizontalPortrait{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "test",
-			Name:      "test-predictive",
+			Namespace: hpNamespace,
+			Name:      hpName,
 		},
 	}
 
@@ -110,19 +118,19 @@ func TestCronJobHorizontal_Update(t *testing.T) {
 
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   "test",
-			Name:        "test-predictive",
+			Namespace:   cronJobNamespace,
+			Name:        cronJobName,
 			Annotations: map[string]string{"c": "d"},
 		},
 		Spec: batchv1.CronJobSpec{},
 	}
 	_ = fakeClient.Create(ctx, cronJob)
 
-	cronJobHorizontal := NewCronJobHorizontal(fakeClient)
+	cronJobHorizontal := NewCronJobHorizontal(fakeClient, cronJobNamespace, "", nil)
 	err := cronJobHorizontal.UpdateJob(ctx, horizontalPortrait, cfg)
 	assert.Nil(t, err)
 
-	_ = fakeClient.Get(ctx, types.NamespacedName{Namespace: horizontalPortrait.Namespace, Name: horizontalPortrait.Name}, cronJob)
+	_ = fakeClient.Get(ctx, types.NamespacedName{Namespace: cronJobNamespace, Name: cronJobName}, cronJob)
 	assert.NotNil(t, cronJob)
 	assert.True(t, len(cronJob.Labels) > 0)
 

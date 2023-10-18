@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,21 +32,34 @@ import (
 	"github.com/traas-stack/kapacity/pkg/util"
 )
 
+const (
+	defaultAlgorithmContainerName = "algorithm"
+
+	envMetricsServerAddr = "METRICS_SERVER_ADDR"
+	envHPNamespace       = "HP_NAMESPACE"
+	envHPName            = "HP_NAME"
+)
+
 type CronJobHorizontal struct {
-	client client.Client
+	client                   client.Client
+	namespace                string
+	defaultMetricsServerAddr string
+	defaultImages            map[autoscalingv1alpha1.PortraitType]string
 }
 
-func NewCronJobHorizontal(client client.Client) Horizontal {
+func NewCronJobHorizontal(client client.Client, namespace, defaultMetricsServerAddr string, defaultImages map[autoscalingv1alpha1.PortraitType]string) Horizontal {
 	return &CronJobHorizontal{
-		client: client,
+		client:                   client,
+		namespace:                namespace,
+		defaultMetricsServerAddr: defaultMetricsServerAddr,
+		defaultImages:            defaultImages,
 	}
 }
 
 func (h *CronJobHorizontal) UpdateJob(ctx context.Context, hp *autoscalingv1alpha1.HorizontalPortrait, cfg *autoscalingv1alpha1.PortraitAlgorithmJob) error {
-	cronJobNamespacedName := types.NamespacedName{
-		Namespace: hp.Namespace,
-		Name:      hp.Name,
-	}
+	cronJobNamespacedName := h.buildCronJobNamespacedName(hp)
+	h.defaultingTemplatePodSpec(&cfg.CronJob.Template.Spec.JobTemplate.Spec.Template.Spec, hp)
+
 	cronJob := &batchv1.CronJob{}
 	if err := h.client.Get(ctx, cronJobNamespacedName, cronJob); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -55,9 +69,6 @@ func (h *CronJobHorizontal) UpdateJob(ctx context.Context, hp *autoscalingv1alph
 					Name:        cronJobNamespacedName.Name,
 					Annotations: cfg.CronJob.Template.Annotations,
 					Labels:      cfg.CronJob.Template.Labels,
-					OwnerReferences: []metav1.OwnerReference{
-						*util.NewControllerRef(hp),
-					},
 				},
 				Spec: cfg.CronJob.Template.Spec,
 			}
@@ -100,10 +111,7 @@ func (h *CronJobHorizontal) UpdateJob(ctx context.Context, hp *autoscalingv1alph
 }
 
 func (h *CronJobHorizontal) CleanupJob(ctx context.Context, hp *autoscalingv1alpha1.HorizontalPortrait) error {
-	cronJobNamespacedName := types.NamespacedName{
-		Namespace: hp.Namespace,
-		Name:      hp.Name,
-	}
+	cronJobNamespacedName := h.buildCronJobNamespacedName(hp)
 
 	cronJob := &batchv1.CronJob{}
 	if err := h.client.Get(ctx, cronJobNamespacedName, cronJob); err != nil {
@@ -117,4 +125,48 @@ func (h *CronJobHorizontal) CleanupJob(ctx context.Context, hp *autoscalingv1alp
 		return fmt.Errorf("failed to delete CronJob %q: %v", cronJobNamespacedName, err)
 	}
 	return nil
+}
+
+func (h *CronJobHorizontal) buildCronJobNamespacedName(hp *autoscalingv1alpha1.HorizontalPortrait) types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: h.namespace,
+		Name:      fmt.Sprintf("%s-%s", hp.Namespace, hp.Name),
+	}
+}
+
+func (h *CronJobHorizontal) defaultingTemplatePodSpec(spec *corev1.PodSpec, hp *autoscalingv1alpha1.HorizontalPortrait) {
+	for i := range spec.Containers {
+		container := &spec.Containers[i]
+		if container.Name != defaultAlgorithmContainerName {
+			continue
+		}
+		if container.Image == "" {
+			container.Image = h.defaultImages[hp.Spec.PortraitType]
+		}
+		if container.Env == nil {
+			container.Env = make([]corev1.EnvVar, 0)
+		}
+		metricsServerAddrSet := false
+		for _, env := range container.Env {
+			if env.Name == envMetricsServerAddr {
+				metricsServerAddrSet = true
+				break
+			}
+		}
+		if !metricsServerAddrSet {
+			container.Env = append(container.Env, corev1.EnvVar{
+				Name:  envMetricsServerAddr,
+				Value: h.defaultMetricsServerAddr,
+			})
+		}
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  envHPNamespace,
+			Value: hp.Namespace,
+		})
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  envHPName,
+			Value: hp.Name,
+		})
+		break
+	}
 }
