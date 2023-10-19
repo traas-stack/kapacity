@@ -130,16 +130,23 @@ def predict_replicas(args, metric_ctx, pred_traffics):
     history = pd.merge(left=history, right=metric_ctx.replicas_history, on='timestamp')
     traffic_col = list(metric_ctx.traffics_history_dict.keys())
 
-    pred = estimator.estimate(history,
-                              pred_traffics,
-                              'timestamp',
-                              metric_ctx.resource_name,
-                              'replicas',
-                              traffic_col,
-                              metric_ctx.resource_target,
-                              int(args.re_time_delta_hours),
-                              int(args.re_test_dataset_size_in_seconds))
-    return pred
+    try:
+        pred = estimator.estimate(history,
+                                  pred_traffics,
+                                  'timestamp',
+                                  metric_ctx.resource_name,
+                                  'replicas',
+                                  traffic_col,
+                                  metric_ctx.resource_target,
+                                  int(args.re_time_delta_hours),
+                                  int(args.re_test_dataset_size_in_seconds))
+        if 'NO_RESULT' in pred['rule_code'].unique():
+            raise RuntimeError('there exist points that no replica number would meet the resource target, '
+                               'please consider setting a more reasonable resource target')
+        return pred
+    except estimator.EstimationException as e:
+        raise RuntimeError("replicas estimation failed, this may be caused by"
+                           "insufficient or irregular history data") from e
 
 
 def merge_history_dict(history_dict):
