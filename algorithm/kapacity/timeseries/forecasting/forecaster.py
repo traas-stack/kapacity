@@ -720,26 +720,3 @@ def load_model(model_path: str):
     estimator.load_model(model_path=model_path)
 
     return estimator
-
-
-def train_main():
-    model_path = './model'
-    # TODO: support auto building training df by fetching metrics server
-    df = pd.DataFrame(columns=['timestamp', 'value'])
-    fit(
-        df=df,
-        freq='10min',
-        target_col='value',
-        time_col='timestamp',
-        series_cols=['workload', 'metric'],
-        prediction_length=12,
-        context_length=12,
-        learning_rate=0.001,
-        epochs=100,
-        batch_size=32,
-        model_path=model_path)
-    return
-
-
-if __name__ == '__main__':
-    train_main()
