@@ -79,6 +79,9 @@ def parse_args():
                         required=True, default='/opt/kapacity/timeseries/forcasting/model')
     parser.add_argument('--tsf-freq', help='frequency (precision) of the time series forecasting model,'
                                            'should be the same as set for training', required=True)
+    parser.add_argument('--tsf-dataloader-num-workers', help='number of worker subprocesses to use for data loading'
+                                                             'of the time series forecasting model',
+                        required=False, default=0)
     parser.add_argument('--re-history-len', help='history length of training data for replicas estimation',
                         required=True)
     parser.add_argument('--re-time-delta-hours', help='time zone offset for replicas estimation model',
@@ -101,7 +104,7 @@ def read_env():
 
 
 def predict_traffics(args, metric_ctx):
-    model = forecaster.load_model(args.tsf_model_path)
+    model = forecaster.load_model(args.tsf_model_path, int(args.tsf_dataloader_num_workers))
     freq = model.config['freq']
     context_length = model.config['context_length']
     df = None
