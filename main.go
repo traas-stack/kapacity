@@ -96,6 +96,7 @@ type promConfig struct {
 
 type algorithmJobConfig struct {
 	Namespace                        string
+	DefaultServiceAccount            string
 	DefaultMetricsServerAddr         string
 	DefaultImagePredictiveHorizontal string
 }
@@ -150,6 +151,8 @@ func main() {
 	flag.DurationVar(&promConfig.MetricsMaxAge, "prometheus-metrics-max-age", 0,
 		"The period for which to query the set of available metrics from Prometheus. If not set, it defaults to prometheus-metrics-relist-interval.")
 	flag.StringVar(&algorithmJobConfig.Namespace, "algorithm-job-namespace", "", "The namespace where algorithm jobs should run in.")
+	flag.StringVar(&algorithmJobConfig.DefaultServiceAccount, "algorithm-job-default-service-account", "",
+		"The default service account for algorithm jobs.")
 	flag.StringVar(&algorithmJobConfig.DefaultMetricsServerAddr, "algorithm-job-default-metrics-server-addr", "",
 		"The default metrics server address to inject to env of algorithm jobs.")
 	flag.StringVar(&algorithmJobConfig.DefaultImagePredictiveHorizontal, "algorithm-job-default-image-predictive-horizontal", "",
@@ -445,8 +448,8 @@ func initExternalHorizontalPortraitAlgorithmJobControllers(client client.Client,
 		return nil, fmt.Errorf("shall set namespace for algorithm jobs")
 	}
 	controllers := make(map[autoscalingv1alpha1.PortraitAlgorithmJobType]jobcontroller.Horizontal)
-	controllers[autoscalingv1alpha1.CronJobPortraitAlgorithmJobType] = jobcontroller.NewCronJobHorizontal(client, config.Namespace, config.DefaultMetricsServerAddr, map[autoscalingv1alpha1.PortraitType]string{
 		autoscalingv1alpha1.PredictivePortraitType: config.DefaultImagePredictiveHorizontal,
+	controllers[autoscalingv1alpha1.CronJobPortraitAlgorithmJobType] = jobcontroller.NewCronJobHorizontal(client, config.Namespace, config.DefaultServiceAccount, config.DefaultMetricsServerAddr, map[autoscalingv1alpha1.PortraitType]string{
 	})
 	return controllers, nil
 }

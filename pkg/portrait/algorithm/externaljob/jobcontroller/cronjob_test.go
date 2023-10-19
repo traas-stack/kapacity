@@ -75,7 +75,7 @@ func TestCronJobHorizontal_Create(t *testing.T) {
 		},
 	}
 
-	cronJobHorizontal := NewCronJobHorizontal(fakeClient, cronJobNamespace, "", nil)
+	cronJobHorizontal := NewCronJobHorizontal(fakeClient, cronJobNamespace, "", "", nil)
 	err := cronJobHorizontal.UpdateJob(ctx, horizontalPortrait, cfg)
 	assert.Nil(t, err)
 
@@ -126,7 +126,7 @@ func TestCronJobHorizontal_Update(t *testing.T) {
 	}
 	_ = fakeClient.Create(ctx, cronJob)
 
-	cronJobHorizontal := NewCronJobHorizontal(fakeClient, cronJobNamespace, "", nil)
+	cronJobHorizontal := NewCronJobHorizontal(fakeClient, cronJobNamespace, "", "", nil)
 	err := cronJobHorizontal.UpdateJob(ctx, horizontalPortrait, cfg)
 	assert.Nil(t, err)
 

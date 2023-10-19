@@ -43,14 +43,16 @@ const (
 type CronJobHorizontal struct {
 	client                   client.Client
 	namespace                string
+	defaultServiceAccount    string
 	defaultMetricsServerAddr string
 	defaultImages            map[autoscalingv1alpha1.PortraitType]string
 }
 
-func NewCronJobHorizontal(client client.Client, namespace, defaultMetricsServerAddr string, defaultImages map[autoscalingv1alpha1.PortraitType]string) Horizontal {
+func NewCronJobHorizontal(client client.Client, namespace, defaultServiceAccount, defaultMetricsServerAddr string, defaultImages map[autoscalingv1alpha1.PortraitType]string) Horizontal {
 	return &CronJobHorizontal{
 		client:                   client,
 		namespace:                namespace,
+		defaultServiceAccount:    defaultServiceAccount,
 		defaultMetricsServerAddr: defaultMetricsServerAddr,
 		defaultImages:            defaultImages,
 	}
@@ -135,6 +137,10 @@ func (h *CronJobHorizontal) buildCronJobNamespacedName(hp *autoscalingv1alpha1.H
 }
 
 func (h *CronJobHorizontal) defaultingTemplatePodSpec(spec *corev1.PodSpec, hp *autoscalingv1alpha1.HorizontalPortrait) {
+	if h.defaultServiceAccount != "" && spec.ServiceAccountName == "" && spec.DeprecatedServiceAccount == "" {
+		spec.ServiceAccountName = h.defaultServiceAccount
+		spec.DeprecatedServiceAccount = h.defaultServiceAccount
+	}
 	for i := range spec.Containers {
 		container := &spec.Containers[i]
 		if container.Name != defaultAlgorithmContainerName {
