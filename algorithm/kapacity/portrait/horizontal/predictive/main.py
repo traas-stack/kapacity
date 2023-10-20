@@ -79,6 +79,9 @@ def parse_args():
                         required=True, default='/opt/kapacity/timeseries/forcasting/model')
     parser.add_argument('--tsf-freq', help='frequency (precision) of the time series forecasting model,'
                                            'should be the same as set for training', required=True)
+    parser.add_argument('--tsf-dataloader-num-workers', help='number of worker subprocesses to use for data loading'
+                                                             'of the time series forecasting model',
+                        required=False, default=0)
     parser.add_argument('--re-history-len', help='history length of training data for replicas estimation',
                         required=True)
     parser.add_argument('--re-time-delta-hours', help='time zone offset for replicas estimation model',
@@ -101,7 +104,7 @@ def read_env():
 
 
 def predict_traffics(args, metric_ctx):
-    model = forecaster.load_model(args.tsf_model_path)
+    model = forecaster.load_model(args.tsf_model_path, int(args.tsf_dataloader_num_workers))
     freq = model.config['freq']
     context_length = model.config['context_length']
     df = None
@@ -127,16 +130,23 @@ def predict_replicas(args, metric_ctx, pred_traffics):
     history = pd.merge(left=history, right=metric_ctx.replicas_history, on='timestamp')
     traffic_col = list(metric_ctx.traffics_history_dict.keys())
 
-    pred = estimator.estimate(history,
-                              pred_traffics,
-                              'timestamp',
-                              metric_ctx.resource_name,
-                              'replicas',
-                              traffic_col,
-                              metric_ctx.resource_target,
-                              int(args.re_time_delta_hours),
-                              int(args.re_test_dataset_size_in_seconds))
-    return pred
+    try:
+        pred = estimator.estimate(history,
+                                  pred_traffics,
+                                  'timestamp',
+                                  metric_ctx.resource_name,
+                                  'replicas',
+                                  traffic_col,
+                                  metric_ctx.resource_target,
+                                  int(args.re_time_delta_hours),
+                                  int(args.re_test_dataset_size_in_seconds))
+        if 'NO_RESULT' in pred['rule_code'].unique():
+            raise RuntimeError('there exist points that no replica number would meet the resource target, '
+                               'please consider setting a more reasonable resource target')
+        return pred
+    except estimator.EstimationException as e:
+        raise RuntimeError("replicas estimation failed, this may be caused by"
+                           "insufficient or irregular history data") from e
 
 
 def merge_history_dict(history_dict):

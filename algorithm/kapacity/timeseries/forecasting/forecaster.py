@@ -631,6 +631,7 @@ def fit(freq: str,
         learning_rate: float = 1e-3,
         epochs: int = 100,
         batch_size: int = 1024,
+        num_workers: int = 0,
         model_path: str = './',
         df: pd.DataFrame = None,
         df_path: str = None):
@@ -644,6 +645,7 @@ def fit(freq: str,
     :param learning_rate: the learning rate of the time series, default 1e-3
     :param epochs: the training epochs of the time series default
     :param batch_size: the batch size for the time series
+    :param num_workers: the number of worker subprocesses to use for data loading
     :param model_path: the dir path for saving model at
     :param df: the dataframe of data
     :param df_path: the path of data, should be csv file
@@ -668,7 +670,7 @@ def fit(freq: str,
         'model_path': model_path,
         'model': 'Fcnet',
         'loss': 'MSE',
-        'num_workers': 10,
+        'num_workers': num_workers,
         'patience': 15,
         'use_validation': False,
         'val_num': 0,
@@ -701,9 +703,11 @@ def fit(freq: str,
 
 
 # load model with estimator
-def load_model(model_path: str):
+def load_model(model_path: str,
+               num_workers: int = 0):
     """
     :param model_path: path of model dir
+    :param num_workers: the number of worker subprocesses to use for data loading
     :return: the estimator
     """
     logging.basicConfig(level=logging.INFO,
@@ -712,6 +716,7 @@ def load_model(model_path: str):
 
     with open(os.path.join(model_path, 'estimator_config.yaml'), 'r') as f:
         config = yaml.safe_load(f)
+    config['num_workers'] = num_workers
 
     estimator = Estimator(config=config,
                           logger=logger,
@@ -720,26 +725,3 @@ def load_model(model_path: str):
     estimator.load_model(model_path=model_path)
 
     return estimator
-
-
-def train_main():
-    model_path = './model'
-    # TODO: support auto building training df by fetching metrics server
-    df = pd.DataFrame(columns=['timestamp', 'value'])
-    fit(
-        df=df,
-        freq='10min',
-        target_col='value',
-        time_col='timestamp',
-        series_cols=['workload', 'metric'],
-        prediction_length=12,
-        context_length=12,
-        learning_rate=0.001,
-        epochs=100,
-        batch_size=32,
-        model_path=model_path)
-    return
-
-
-if __name__ == '__main__':
-    train_main()
