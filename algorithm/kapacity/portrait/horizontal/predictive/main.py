@@ -18,15 +18,11 @@ import os
 import datetime
 import pandas as pd
 
-import grpc
 from kubernetes import client, config, utils
-from google.protobuf import timestamp_pb2, duration_pb2
 
 import kapacity.portrait.horizontal.predictive.replicas_estimator as estimator
 import kapacity.timeseries.forecasting.forecaster as forecaster
-import kapacity.portrait.horizontal.predictive.metrics.metric_pb2 as metric_pb
-import kapacity.portrait.horizontal.predictive.metrics.provider_pb2 as provider_pb
-import kapacity.portrait.horizontal.predictive.metrics.provider_pb2_grpc as provider_pb_grpc
+import kapacity.metric.query as query
 
 
 class EnvInfo:
@@ -172,7 +168,7 @@ def resample_by_freq(old_df, freq, agg_funcs):
 
 def fetch_metrics_history(args, env, hp_cr):
     # fetch the start time and end time for metrics
-    start, end = compute_history_range(args)
+    start, end = query.compute_history_range(args.re_history_len)
 
     # read horizontal portrait cr
     metrics_spec = hp_cr['spec']['metrics']
@@ -191,14 +187,15 @@ def fetch_metrics_history(args, env, hp_cr):
                 resource = metric['containerResource']
             else:
                 raise RuntimeError('MetricTypeError')
-            resource_history = fetch_metrics(env, metric, scale_target, start, end)
+            resource_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
             metric_ctx.resource_name = resource['name']
             metric_ctx.resource_target = compute_resource_target(env.namespace, resource, scale_target)
             metric_ctx.resource_history = resource_history.rename(columns={'value': resource['name']})
         elif i == 1:
             if metric_type != 'External':
                 raise RuntimeError('MetricTypeError')
-            replica_history = fetch_replicas_metric_history(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
+            replica_history = query.fetch_replicas_metric_history(env.metrics_server_addr, env.namespace, metric,
+                                                                  scale_target, start, end)
             metric_ctx.replicas_history = replica_history.rename(columns={'value': 'replicas'})
         else:
             if metric_type == 'Object':
@@ -207,45 +204,10 @@ def fetch_metrics_history(args, env, hp_cr):
                 metric_name = metric['external']['metric']['name']
             else:
                 raise RuntimeError('MetricTypeError')
-            traffic_history = fetch_metrics(env, metric, scale_target, start, end)
+            traffic_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
             metric_ctx.traffics_history_dict[metric_name] = traffic_history
 
     return metric_ctx
-
-
-def fetch_metrics(env, metric, scale_target, start, end):
-    metric_type = metric['type']
-    if metric_type == 'Resource':
-        return fetch_resource_metric_history(addr=env.metrics_server_addr,
-                                             namespace=env.namespace,
-                                             metric=metric,
-                                             scale_target=scale_target,
-                                             start=start,
-                                             end=end)
-    elif metric_type == 'ContainerResource':
-        return fetch_container_resource_metric_history(addr=env.metrics_server_addr,
-                                                       namespace=env.namespace,
-                                                       metric=metric,
-                                                       scale_target=scale_target,
-                                                       start=start,
-                                                       end=end)
-    elif metric_type == 'Pods':
-        # TODO: support pods metric type
-        raise RuntimeError('UnsupportedMetricType')
-    elif metric_type == 'Object':
-        return fetch_object_metric_history(addr=env.metrics_server_addr,
-                                           namespace=env.namespace,
-                                           metric=metric,
-                                           start=start,
-                                           end=end)
-    elif metric_type == 'External':
-        return fetch_external_metric_history(addr=env.metrics_server_addr,
-                                             namespace=env.namespace,
-                                             metric=metric,
-                                             start=start,
-                                             end=end)
-    else:
-        raise RuntimeError('UnsupportedMetricType')
 
 
 def compute_resource_target(namespace, resource, scale_target):
@@ -286,148 +248,6 @@ def fetch_workload_pod_request(namespace, resource_name, scale_target):
     return float(total_request)
 
 
-def compute_history_range(args):
-    now = datetime.datetime.now()
-    ago = (now - datetime.timedelta(minutes=time_period_to_minutes(args.re_history_len)))
-
-    start = timestamp_pb2.Timestamp()
-    start.FromSeconds(int(ago.timestamp()))
-    end = timestamp_pb2.Timestamp()
-    end.FromSeconds(int(now.timestamp()))
-    return start, end
-
-
-def fetch_replicas_metric_history(addr, namespace, metric, scale_target, start, end):
-    external = metric['external']
-    metric_identifier = build_metric_identifier(external['metric'])
-    name, group_kind = get_obj_name_and_group_kind(scale_target)
-    workload_external = metric_pb.WorkloadExternalQuery(group_kind=group_kind,
-                                                        namespace=namespace,
-                                                        name=name,
-                                                        metric=metric_identifier)
-    query = metric_pb.Query(type=metric_pb.WORKLOAD_EXTERNAL,
-                            workload_external=workload_external)
-    return query_metrics(addr=addr, query=query, start=start, end=end)
-
-
-def fetch_resource_metric_history(addr, namespace, metric, scale_target, start, end):
-    resource_name = metric['resource']['name']
-    name, group_kind = get_obj_name_and_group_kind(scale_target)
-    workload_resource = metric_pb.WorkloadResourceQuery(group_kind=group_kind,
-                                                        namespace=namespace,
-                                                        name=name,
-                                                        resource_name=resource_name,
-                                                        ready_pods_only=True)
-    query = metric_pb.Query(type=metric_pb.WORKLOAD_RESOURCE,
-                            workload_resource=workload_resource)
-    return query_metrics(addr=addr, query=query, start=start, end=end)
-
-
-def fetch_container_resource_metric_history(addr, namespace, metric, scale_target, start, end):
-    container_resource = metric['containerResource']
-    resource_name = container_resource['name']
-    container_name = container_resource['container']
-    name, group_kind = get_obj_name_and_group_kind(scale_target)
-    workload_container_resource = metric_pb.WorkloadContainerResourceQuery(group_kind=group_kind,
-                                                                           namespace=namespace,
-                                                                           name=name,
-                                                                           resource_name=resource_name,
-                                                                           container_name=container_name,
-                                                                           ready_pods_only=True)
-    query = metric_pb.Query(type=metric_pb.WORKLOAD_CONTAINER_RESOURCE,
-                            workload_container_resource=workload_container_resource)
-    return query_metrics(addr=addr, query=query, start=start, end=end)
-
-
-def fetch_object_metric_history(addr, namespace, metric, start, end):
-    obj = metric['object']
-    metric_identifier = build_metric_identifier(obj['metric'])
-    name, group_kind = get_obj_name_and_group_kind(obj['describedObject'])
-    object_query = metric_pb.ObjectQuery(namespace=namespace,
-                                         name=name,
-                                         group_kind=group_kind,
-                                         metric=metric_identifier)
-    query = metric_pb.Query(type=metric_pb.OBJECT,
-                            object=object_query)
-    return query_metrics(addr=addr, query=query, start=start, end=end)
-
-
-def fetch_external_metric_history(addr, namespace, metric, start, end):
-    external = metric['external']
-    metric_identifier = build_metric_identifier(external['metric'])
-    external_query = metric_pb.ExternalQuery(namespace=namespace,
-                                             metric=metric_identifier)
-    query = metric_pb.Query(type=metric_pb.EXTERNAL,
-                            external=external_query)
-    return query_metrics(addr=addr, query=query, start=start, end=end)
-
-
-def build_metric_identifier(metric):
-    metric_name, metric_selector = None, None
-    if 'name' in metric:
-        metric_name = metric['name']
-    elif 'selector' in metric:
-        metric_selector = metric['selector']
-    return metric_pb.MetricIdentifier(name=metric_name,
-                                      selector=metric_selector)
-
-
-def get_obj_name_and_group_kind(obj):
-    name = obj['name']
-    group = obj['apiVersion'].split('/')[0]
-    kind = obj['kind']
-    return name, metric_pb.GroupKind(group=group, kind=kind)
-
-
-def time_period_to_minutes(time_period):
-    minutes = 0
-    if time_period.find('D') != -1:
-        if len(time_period) == 1:
-            minutes = 24 * 60
-        else:
-            minutes = int(time_period.split('D')[0]) * 1440
-    elif time_period.find('H') != -1:
-        if len(time_period) == 1:
-            minutes = 60
-        else:
-            minutes = int(time_period.split('H')[0]) * 60
-    elif time_period.find('min') != -1:
-        if len(time_period) == 1:
-            minutes = 1
-        else:
-            minutes = int(time_period.split('min')[0])
-    return minutes
-
-
-def query_metrics(addr, query, start, end):
-    step = duration_pb2.Duration()
-    step.FromSeconds(60)
-    query_request = provider_pb.QueryRequest(query=query,
-                                             start=start,
-                                             end=end,
-                                             step=step)
-    with grpc.insecure_channel(addr) as channel:
-        stub = provider_pb_grpc.ProviderServiceStub(channel)
-        response = stub.Query(query_request)
-    return convert_metric_series_to_dataframe(response.series)
-
-
-def convert_metric_series_to_dataframe(series):
-    dataframe = None
-    for item in series:
-        array = []
-        for point in item.points:
-            array.append([point.timestamp, point.value])
-        df = pd.DataFrame(array, columns=['timestamp', 'value'], dtype=float)
-        df['timestamp'] = df['timestamp'].map(lambda x: x / 1000).astype('int64')
-        if dataframe is not None:
-            # TODO: consider if it's possible to have multiple series
-            pd.merge(dataframe, df, how='left', on='timestamp')
-        else:
-            dataframe = df
-    return dataframe
-
-
 def read_hp_cr(args, namespace, name):
     if args.kubeconfig:
         config.load_kube_config(config_file=args.kubeconfig)
@@ -446,7 +266,8 @@ def write_pred_replicas_to_config_map(args, env, hp_cr, pred_replicas):
     last_timestamp = pred_replicas.iloc[len(pred_replicas) - 1, 0]
     content = pred_replicas.set_index('timestamp', drop=True).to_dict()['pred_replicas']
     expire_time = parse_timestamp_to_rfc3339(
-        datetime.datetime.utcfromtimestamp(last_timestamp) + datetime.timedelta(minutes=time_period_to_minutes(args.scaling_freq)))
+        datetime.datetime.utcfromtimestamp(last_timestamp) + datetime.timedelta(
+            minutes=query.time_period_to_minutes(args.scaling_freq)))
     cmap_namespace = env.namespace
     cmap_name = env.hp_name + '-result'
 
