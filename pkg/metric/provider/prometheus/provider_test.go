@@ -63,7 +63,7 @@ var (
 					},
 					ContainerLabel: "container",
 				},
-				ReadyPodsOnlyContainerQuery: `sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (pod) group_left sum by (pod) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m])))`,
+				ReadyPodsOnlyContainerQuery: `sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (namespace, pod) group_left () sum by (namespace, pod) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m])))`,
 			},
 			Memory: ResourceRule{
 				ResourceRule: promadaptercfg.ResourceRule{
@@ -76,7 +76,7 @@ var (
 					},
 					ContainerLabel: "container",
 				},
-				ReadyPodsOnlyContainerQuery: `sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (pod) group_left sum by (pod) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>}))`,
+				ReadyPodsOnlyContainerQuery: `sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (namespace, pod) group_left () sum by (namespace, pod) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>}))`,
 			},
 			Window: prommodel.Duration(3 * time.Minute),
 		},

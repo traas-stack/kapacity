@@ -16,7 +16,7 @@ data:
     resourceRules:
       cpu:
         containerQuery: sum by (<<.GroupBy>>) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m]))
-        readyPodsOnlyContainerQuery: sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (pod) group_left sum by (pod) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m])))
+        readyPodsOnlyContainerQuery: sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (namespace, pod) group_left sum by (namespace, pod) (irate(container_cpu_usage_seconds_total{container!="",container!="POD",<<.LabelMatchers>>}[3m])))
         resources:
           overrides:
             namespace:
@@ -26,7 +26,7 @@ data:
         containerLabel: container
       memory:
         containerQuery: sum by (<<.GroupBy>>) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>})
-        readyPodsOnlyContainerQuery: sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (pod) group_left sum by (pod) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>}))
+        readyPodsOnlyContainerQuery: sum by (<<.GroupBy>>) ((kube_pod_status_ready{condition="true"} == 1) * on (namespace, pod) group_left sum by (namespace, pod) (container_memory_working_set_bytes{container!="",container!="POD",<<.LabelMatchers>>}))
         resources:
           overrides:
             namespace:
