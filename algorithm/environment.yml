@@ -1,0 +1,11 @@
+name: kapacity
+dependencies:
+  - python=3.11.*
+  - pytorch::pytorch=2.0.*
+  - pandas=1.5.*
+  - pyyaml=6.0.*
+  - scikit-learn=1.2.*
+  - lightgbm=3.3.*
+  - protobuf=3.20.*
+  - grpcio=1.48.*
+  - python-kubernetes=23.6.*
