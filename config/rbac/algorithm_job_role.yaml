@@ -1,0 +1,44 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: algorithm-job-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kapacity
+    app.kubernetes.io/part-of: kapacity
+    app.kubernetes.io/managed-by: kustomize
+  name: algorithm-job-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - '*'
+  resources:
+  - '*/scale'
+  verbs:
+  - get
+- apiGroups:
+  - autoscaling.kapacitystack.io
+  resources:
+  - horizontalportraits
+  verbs:
+  - get
+  - list
+  - watch

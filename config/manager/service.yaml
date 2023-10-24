@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: service
+    app.kubernetes.io/instance: grpc-service
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: kapacity
+    app.kubernetes.io/part-of: kapacity
+    app.kubernetes.io/managed-by: kustomize
+  name: grpc-service
+  namespace: system
+spec:
+  ports:
+  - port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    control-plane: controller-manager

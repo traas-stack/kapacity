@@ -46,6 +46,9 @@ spec:
         - --zap-log-level=1
         - --leader-elect
         - --prometheus-metrics-config=/etc/kapacity/prometheus-metrics-config.yaml
+        - --algorithm-job-namespace=kapacity-system
+        - --algorithm-job-default-service-account=kapacity-algorithm-job
+        - --algorithm-job-default-metrics-server-addr=kapacity-grpc-service:9090
         image: controller:latest
         name: manager
         securityContext:
@@ -65,6 +68,10 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+        ports:
+        - containerPort: 9090
+          name: grpc-server
+          protocol: TCP
         volumeMounts:
         - name: config
           mountPath: /etc/kapacity
