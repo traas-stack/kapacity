@@ -2,7 +2,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'algorithm-v*'
 permissions:
   contents: read
   packages: write
@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Get tag
-        run: echo "tag=$(git describe --tags --match 'v*')" >> $GITHUB_ENV
+        run: echo "tag=$(git describe --tags --match 'algorithm-v*' | sed -e 's/^algorithm-//')" >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
@@ -30,7 +30,8 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v4
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
+          context: ./algorithm
+          file: ./algorithm/horizontal-predictive.Dockerfile
+          platforms: linux/amd64
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/kapacity-manager:${{ env.tag }}
+          tags: ghcr.io/${{ github.repository_owner }}/kapacity-algorithm-horizontal-predictive:${{ env.tag }}
