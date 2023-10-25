@@ -1,3 +1,3 @@
 # Contribution Guidelines
 
-Please visit our [website](https://kapacity.netlify.app/docs/contribution-guidelines/) for up-to-date details.
+Please visit the [Contributing page](https://kapacity.netlify.app/docs/contribution-guidelines/) on our website for up-to-date details.
