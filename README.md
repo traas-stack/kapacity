@@ -1,11 +1,14 @@
-# Kapacity
+<a href="https://kapacity.netlify.app">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logo/logo-with-white-text.png">
+    <img alt="logo" src="logo/logo-with-black-text.png" width="400">
+  </picture>
+</a>
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/traas-stack/kapacity.svg)](https://pkg.go.dev/github.com/traas-stack/kapacity)
 [![License](https://img.shields.io/github/license/traas-stack/kapacity)](https://www.apache.org/licenses/LICENSE-2.0.html)
 ![GoVersion](https://img.shields.io/github/go-mod/go-version/traas-stack/kapacity)
 [![Go Report Card](https://goreportcard.com/badge/github.com/traas-stack/kapacity)](https://goreportcard.com/report/github.com/traas-stack/kapacity)
-
-<a href="https://kapacity.netlify.app"><img src="logo/logo.svg" alt="logo" width="100"></a>
 
 > English | [中文](README_zh.md)
 
@@ -16,6 +19,8 @@
 It automates your scaling, mitigates capacity risks, saves your effort as well as cost.
 
 Kapacity is built upon core ideas and years of experience of the large-scale production capacity system at Ant Group, which saves ~100k cores yearly with high stability and zero downtime, combined with best practices from the cloud native community.
+
+✨ _Watch our talk (in Chinese) at KubeCon China 2023 "[How We Build Production-Grade HPA: From Effective Algorithm to Risk-Free Autoscaling](https://www.youtube.com/watch?v=9UqBSpmGzCs)" to learn the core idea and principles of Kapacity's Intelligent HPA in depth!_
 
 🚀 _Please note that Kapacity is still under active development, and not all features proposed have been implemented. Feel free to directly talk to us through [community](#community--support) if you have any wish or doubt._
 

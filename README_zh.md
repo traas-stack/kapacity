@@ -1,11 +1,14 @@
-# Kapacity
+<a href="https://kapacity.netlify.app/zh-cn/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logo/logo-with-white-text.png">
+    <img alt="logo" src="logo/logo-with-black-text.png" width="400">
+  </picture>
+</a>
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/traas-stack/kapacity.svg)](https://pkg.go.dev/github.com/traas-stack/kapacity)
 [![License](https://img.shields.io/github/license/traas-stack/kapacity)](https://www.apache.org/licenses/LICENSE-2.0.html)
 ![GoVersion](https://img.shields.io/github/go-mod/go-version/traas-stack/kapacity)
 [![Go Report Card](https://goreportcard.com/badge/github.com/traas-stack/kapacity)](https://goreportcard.com/report/github.com/traas-stack/kapacity)
-
-<a href="https://kapacity.netlify.app/zh-cn/"><img src="logo/logo.svg" alt="logo" width="100"></a>
 
 > [English](README.md) | 中文
 
@@ -15,7 +18,9 @@
 
 Kapacity 基于蚂蚁集团内部容量系统的核心理念和多年的大规模生产实践经验而构建，该内部容量系统目前已能安全稳定地为蚂蚁持续节省年均约 10w 核的算力成本，同时，Kapacity 也结合了来自云原生社区的最佳实践。
 
-🚀 _请注意，Kapacity 目前仍处于快速迭代的阶段，很多规划中的功能还未实现。如果你有任何需求或疑问，欢迎通过[社区](#社区与支持)和我们直接沟通。_
+✨ _观看我们在 KubeCon China 2023 上的中文演讲「[我们如何构建生产级 HPA：从智能算法到无风险自动扩缩容](https://mp.weixin.qq.com/s/TKWZhOZxAhB8HiwB2jAuvg)」来深入了解 Kapacity Intelligent HPA 的设计思想和实现原理！_
+
+🚀 _Kapacity 目前仍处于快速迭代的阶段，部分规划中的功能还未完全实现。如果你有任何需求或疑问，欢迎通过[社区](#社区与支持)和我们直接沟通。_
 
 ---
 
@@ -28,7 +33,7 @@ Kapacity 基于蚂蚁集团内部容量系统的核心理念和多年的大规�
 * HPA 的自动扩缩容通过响应式的方式驱动，仅当应用负载已经超出设定水位时才会触发扩容，此时容量风险已经出现，只能起到应急的作用而非提前规避风险，尤其对于自身启动时间较长的应用，几乎起不到快速应对流量洪峰的作用。
 * HPA 通过简单的指标折比来计算扩缩容目标副本数，只适用于应用副本数和相关指标呈严格线性相关的理想场景，但实际生产当中应用的各类指标和副本数之间存在错综复杂的关系，该算法很难得到符合容量水位要求的副本数。
 * 容量弹性作为变更故障率较高的一类场景，HPA 除了支持限制扩缩容速率外没有提供任何其他的风险防控手段，在稳定性要求较高的生产环境中大规模落地是很难令人放心的。
-* HPA 作为 Kubernetes 内置能力，一方面自然有其开箱即用的好处，但另一方面也使其绑定在了具体的 k8s 版本上，自身的行为难以被用户扩展或调整，难以满足各类用户在不同应用场景下的定制化需求。
+* HPA 作为 Kubernetes 内置能力，一方面自然有其开箱即用的好处，但另一方面也使其绑定在了具体的 K8s 版本上，自身的行为难以被用户扩展或调整，难以满足各类用户在不同应用场景下的定制化需求。
 
 为此，我们构建了 Intelligent HPA (IHPA)，它是一个更加智能化的、具备完善技术风险能力的且高度可扩展定制的 HPA 替代方案。它具有如下几个核心特性：
 
