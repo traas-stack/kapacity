@@ -196,12 +196,9 @@ def fetch_metrics_history(args, env, hp_cr):
                                                                   scale_target, start, end)
             metric_ctx.replicas_history = replica_history.rename(columns={'value': 'replicas'})
         else:
-            if metric_type == 'Object':
-                metric_name = metric['object']['metric']['name']
-            elif metric_type == 'External':
-                metric_name = metric['external']['metric']['name']
-            else:
+            if metric_type != 'Object' and metric_type != 'External':
                 raise RuntimeError('MetricTypeError')
+            metric_name = metric['name']
             traffic_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
             metric_ctx.traffics_history_dict[metric_name] = traffic_history
 
@@ -215,7 +212,7 @@ def compute_resource_target(namespace, resource, scale_target):
     if target['type'] == 'Value':
         raise RuntimeError('UnsupportedResourceTargetType')
     elif target['type'] == 'AverageValue':
-        return target['averageValue']
+        return float(utils.parse_quantity(target['averageValue']))
     elif target['type'] == 'Utilization':
         return (target['averageUtilization'] / 100) * fetch_workload_pod_request(namespace, resource_name, scale_target)
 
