@@ -90,20 +90,16 @@ def fetch_history_metrics(args, target):
 
     for i in range(len(target['metrics'])):
         metric = target['metrics'][i]
+        if metric['type'] != 'Object' and metric['type'] != 'External':
+            raise RuntimeError('UnsupportedMetricType')
         workload_namespace = target['workloadNamespace']
         workload_name = target['workloadName']
-
         df_metric = query.fetch_metrics(addr=args.metrics_server_addr,
                                         namespace=workload_namespace,
                                         metric=metric,
                                         start=start,
                                         end=end)
-        if metric['type'] == 'Object':
-            df_metric['metric'] = metric['object']['metric']['name']
-        elif metric['type'] == 'External':
-            df_metric['metric'] = metric['external']['metric']['name']
-        else:
-            raise RuntimeError('UnsupportedMetricType')
+        df_metric['metric'] = metric['name']
         df_metric['workload'] = '%s/%s' % (workload_namespace, workload_name)
         df = pd.concat([df, df_metric])
     return df
