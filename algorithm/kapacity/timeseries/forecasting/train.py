@@ -85,22 +85,22 @@ def fetch_train_data(args, config):
 
 
 def fetch_history_metrics(args, target):
-    df = pd.DataFrame(columns=['timestamp', 'value', 'workload', 'metric'])
+    workload_namespace = target['workloadNamespace']
+    workload_name = target['workloadRef']['name']
+    workload_identifier = '%s/%s' % (workload_namespace, workload_name)
     start, end = query.compute_history_range(target['historyLength'])
 
+    df = pd.DataFrame(columns=['timestamp', 'value', 'workload', 'metric'])
     for i in range(len(target['metrics'])):
         metric = target['metrics'][i]
-        if metric['type'] != 'Object' and metric['type'] != 'External':
-            raise RuntimeError('UnsupportedMetricType')
-        workload_namespace = target['workloadNamespace']
-        workload_name = target['workloadName']
-        df_metric = query.fetch_metrics(addr=args.metrics_server_addr,
-                                        namespace=workload_namespace,
-                                        metric=metric,
-                                        start=start,
-                                        end=end)
+        df_metric = query.fetch_metrics(args.metrics_server_addr,
+                                        workload_namespace,
+                                        metric,
+                                        target['workloadRef'],
+                                        start,
+                                        end)
         df_metric['metric'] = metric['name']
-        df_metric['workload'] = '%s/%s' % (workload_namespace, workload_name)
+        df_metric['workload'] = workload_identifier
         df = pd.concat([df, df_metric])
     return df
 
