@@ -145,32 +145,6 @@ const (
 	KubeHPAPortraitAlgorithmType PortraitAlgorithmType = "KubeHPA"
 )
 
-// KubeHPAPortraitAlgorithm defines parameters of KubeHPA algorithm.
-type KubeHPAPortraitAlgorithm struct {
-	// SyncPeriod is the period for syncing the portrait.
-	// +optional
-	// +kubebuilder:default="15s"
-	SyncPeriod metav1.Duration `json:"syncPeriod"`
-
-	// Tolerance is the tolerance for when resource usage suggests upscaling/downscaling.
-	// Should be a string formatted float64 number.
-	// +optional
-	// +kubebuilder:default="0.1"
-	Tolerance string `json:"tolerance"`
-
-	// CPUInitializationPeriod is the period after pod start when CPU samples might be skipped.
-	// +optional
-	// +kubebuilder:default="5m"
-	CPUInitializationPeriod metav1.Duration `json:"cpuInitializationPeriod"`
-
-	// InitialReadinessDelay is period after pod start during which readiness changes
-	// are treated as readiness being set for the first time. The only effect of this is that
-	// HPA will disregard CPU samples from unready pods that had last readiness change during that period.
-	// +optional
-	// +kubebuilder:default="30s"
-	InitialReadinessDelay metav1.Duration `json:"initialReadinessDelay"`
-}
-
 // ExternalJobPortraitAlgorithm defines configurations of ExternalJob algorithm.
 type ExternalJobPortraitAlgorithm struct {
 	// Job is the external job that runs the algorithm.
@@ -233,6 +207,32 @@ const (
 
 // ConfigMapPortraitAlgorithmResultSource defines configurations of ConfigMap result source.
 type ConfigMapPortraitAlgorithmResultSource struct{}
+
+// KubeHPAPortraitAlgorithm defines parameters of KubeHPA algorithm.
+type KubeHPAPortraitAlgorithm struct {
+	// SyncPeriod is the period for syncing the portrait.
+	// +optional
+	// +kubebuilder:default="15s"
+	SyncPeriod metav1.Duration `json:"syncPeriod"`
+
+	// Tolerance is the tolerance for when resource usage suggests upscaling/downscaling.
+	// Should be a string formatted float64 number.
+	// +optional
+	// +kubebuilder:default="0.1"
+	Tolerance string `json:"tolerance"`
+
+	// CPUInitializationPeriod is the period after pod start when CPU samples might be skipped.
+	// +optional
+	// +kubebuilder:default="5m"
+	CPUInitializationPeriod metav1.Duration `json:"cpuInitializationPeriod"`
+
+	// InitialReadinessDelay is period after pod start during which readiness changes
+	// are treated as readiness being set for the first time. The only effect of this is that
+	// HPA will disregard CPU samples from unready pods that had last readiness change during that period.
+	// +optional
+	// +kubebuilder:default="30s"
+	InitialReadinessDelay metav1.Duration `json:"initialReadinessDelay"`
+}
 
 // HorizontalPortraitStatus defines the observed state of HorizontalPortrait.
 type HorizontalPortraitStatus struct {
