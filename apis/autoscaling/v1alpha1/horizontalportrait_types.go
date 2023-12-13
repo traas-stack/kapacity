@@ -20,6 +20,7 @@ import (
 	k8sautoscalingv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 //+kubebuilder:object:root=true
@@ -46,8 +47,15 @@ type HorizontalPortraitSpec struct {
 
 // PortraitSpec defines general specs of portrait.
 type PortraitSpec struct {
-	// PortraitType is the type of portrait. Different type has different portrait generating logic.
+	// PortraitType is the type of portrait.
+	// Different type has different semantics with different portrait generating logic.
 	PortraitType PortraitType `json:"portraitType"`
+
+	// ExternalGeneratorName is the identifier of external controller which shall generate this portrait.
+	// External controllers should use this field to filter portraits to generate.
+	// Kapacity's built-in portrait generators would ignore portraits with this field set.
+	// +optional
+	ExternalGeneratorName string `json:"externalGeneratorName,omitempty"`
 
 	// Metrics contains the specifications for which to use to generate the portrait.
 	// +optional
@@ -121,10 +129,10 @@ type PortraitAlgorithm struct {
 	KubeHPA *KubeHPAPortraitAlgorithm `json:"kubeHPA,omitempty"`
 
 	// Config is the general configuration data for arbitrary algorithm those
-	// used by external user-defined portraits.
-	// TODO: consider if we can make it structural
+	// used by external portrait generators.
 	// +optional
-	Config map[string]string `json:"config,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Config *runtime.RawExtension `json:"config,omitempty"`
 }
 
 type PortraitAlgorithmType string
