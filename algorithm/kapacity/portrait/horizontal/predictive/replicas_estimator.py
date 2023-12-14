@@ -176,7 +176,7 @@ class Estimator(object):
 
         x_train = df_sample[features + [self.replicas_col, self.time_col] + ['weekday', 'minute']].copy()
         x_train[features] = x_train[features].astype(float).div(x_train[self.replicas_col].values, axis=0)
-        y_train = df_sample[self.resource_col]
+        y_train = df_sample[self.resource_col].astype(float).div(x_train[self.replicas_col].values, axis=0)
 
         x_train_trans = x_train[features].values
 
@@ -254,7 +254,7 @@ class Estimator(object):
 
         x_test = df_sample[features + [self.replicas_col, self.time_col] + ['weekday', 'minute']].copy()
         x_test[features] = x_test[features].astype(float).div(x_test[self.replicas_col].values, axis=0)
-        y_test = df_sample[self.resource_col]
+        y_test = df_sample[self.resource_col].astype(float).div(x_test[self.replicas_col].values, axis=0)
         self.future_ture = y_test
 
         x_test_trans = x_test[features].values
