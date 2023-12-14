@@ -44,12 +44,10 @@ spec:
                   the portrait.
                 properties:
                   config:
-                    additionalProperties:
-                      type: string
-                    description: 'Config is the general configuration data for arbitrary
-                      algorithm those used by external user-defined portraits. TODO:
-                      consider if we can make it structural'
+                    description: Config is the general configuration data for arbitrary
+                      algorithm those used by external portrait generators.
                     type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   externalJob:
                     description: ExternalJob is the configuration for ExternalJob
                       algorithm.
@@ -15937,6 +15935,12 @@ spec:
                 required:
                 - type
                 type: object
+              externalGeneratorName:
+                description: ExternalGeneratorName is the identifier of external controller
+                  which shall generate this portrait. External controllers should
+                  use this field to filter portraits to generate. Kapacity's built-in
+                  portrait generators would ignore portraits with this field set.
+                type: string
               metrics:
                 description: Metrics contains the specifications for which to use
                   to generate the portrait.
@@ -16423,7 +16427,7 @@ spec:
                 type: array
               portraitType:
                 description: PortraitType is the type of portrait. Different type
-                  has different portrait generating logic.
+                  has different semantics with different portrait generating logic.
                 type: string
               scaleTargetRef:
                 description: ScaleTargetRef points to the target resource to scale.

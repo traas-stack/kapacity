@@ -151,8 +151,11 @@ func (r *HorizontalPortraitReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 		portraitGenerator, ok := r.PortraitGenerators[hp.Spec.PortraitType]
 		if !ok {
-			// this should not happen because we have watch predicates
-			l.Info("unknown portrait type, ignore", "portraitType", hp.Spec.PortraitType)
+			err := fmt.Errorf("unknown portrait type %q", hp.Spec.PortraitType)
+			l.Error(err, "failed to get portrait generator")
+			r.errorOut(ctx, hp, hpStatusOriginal, autoscalingv1alpha1.PortraitGenerated, metav1.ConditionFalse,
+				"FailedGetPortraitGenerator", fmt.Sprintf("failed to get portrait generator: %v", err))
+			// do not requeue because it won't help
 			return ctrl.Result{}, nil
 		}
 
@@ -190,14 +193,7 @@ func (r *HorizontalPortraitReconciler) SetupWithManager(mgr ctrl.Manager) error 
 					if !ok {
 						return false
 					}
-					switch hp.Spec.PortraitType {
-					case autoscalingv1alpha1.ReactivePortraitType:
-					case autoscalingv1alpha1.PredictivePortraitType:
-					case autoscalingv1alpha1.BurstPortraitType:
-					default:
-						return false
-					}
-					return true
+					return hp.Spec.ExternalGeneratorName == ""
 				}),
 			)).
 		Watches(&source.Channel{Source: r.EventTrigger}, &handler.EnqueueRequestForObject{}).
