@@ -171,19 +171,12 @@ def query_metrics(addr, query, start, end):
 
 
 def convert_metric_series_to_dataframe(series):
-    dataframe = None
-    for item in series:
-        array = []
-        for point in item.points:
-            array.append([point.timestamp, point.value])
-        df = pd.DataFrame(array, columns=['timestamp', 'value'], dtype=float)
-        df['timestamp'] = df['timestamp'].map(lambda x: x / 1000).astype('int64')
-        if dataframe is not None:
-            # TODO: consider if it's possible to have multiple series
-            pd.merge(dataframe, df, how='left', on='timestamp')
-        else:
-            dataframe = df
-    return dataframe
+    df_list = []
+    for point in series[0].points:
+        df_list.append([point.timestamp, point.value])
+    df = pd.DataFrame(df_list, columns=['timestamp', 'value'], dtype=float)
+    df['timestamp'] = df['timestamp'].map(lambda x: x / 1000).astype('int64')
+    return df
 
 
 def time_period_to_minutes(time_period):

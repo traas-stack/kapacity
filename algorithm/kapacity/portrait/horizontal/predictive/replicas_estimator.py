@@ -631,15 +631,15 @@ class EstimationException(Exception):
     pass
 
 
-def estimate(data,
-             data_pred,
-             time_col,
-             resource_col,
-             replicas_col,
-             traffic_cols,
-             resource_target,
-             time_delta_hours,
-             test_dataset_size_in_seconds=86400):
+def estimate(data: pd.DataFrame,
+             data_pred: pd.DataFrame,
+             time_col: str,
+             resource_col: str,
+             replicas_col: str,
+             traffic_cols: list[str],
+             resource_target: float,
+             time_delta_hours: int,
+             test_dataset_size_in_seconds: int = 86400) -> pd.DataFrame:
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s: %(message)s')
     logger = logging.getLogger()
