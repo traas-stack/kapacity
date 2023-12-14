@@ -42,8 +42,12 @@ def fetch_metrics(addr, namespace, metric, scale_target, start, end):
                                                        start=start,
                                                        end=end)
     elif metric_type == 'Pods':
-        # TODO: support pods metric type
-        raise RuntimeError('UnsupportedMetricType')
+        return fetch_pod_metric_history(addr=addr,
+                                        namespace=namespace,
+                                        metric=metric,
+                                        scale_target=scale_target,
+                                        start=start,
+                                        end=end)
     elif metric_type == 'Object':
         return fetch_object_metric_history(addr=addr,
                                            namespace=namespace,
@@ -69,19 +73,6 @@ def compute_history_range(history_len):
     end = timestamp_pb2.Timestamp()
     end.FromSeconds(int(now))
     return start, end
-
-
-def fetch_replicas_metric_history(addr, namespace, metric, scale_target, start, end):
-    external = metric['external']
-    metric_identifier = build_metric_identifier(external['metric'])
-    name, group_kind = get_obj_name_and_group_kind(scale_target)
-    workload_external = metric_pb.WorkloadExternalQuery(group_kind=group_kind,
-                                                        namespace=namespace,
-                                                        name=name,
-                                                        metric=metric_identifier)
-    query = metric_pb.Query(type=metric_pb.WORKLOAD_EXTERNAL,
-                            workload_external=workload_external)
-    return query_metrics(addr=addr, query=query, start=start, end=end)
 
 
 def fetch_resource_metric_history(addr, namespace, metric, scale_target, start, end):
@@ -110,6 +101,19 @@ def fetch_container_resource_metric_history(addr, namespace, metric, scale_targe
                                                                            ready_pods_only=True)
     query = metric_pb.Query(type=metric_pb.WORKLOAD_CONTAINER_RESOURCE,
                             workload_container_resource=workload_container_resource)
+    return query_metrics(addr=addr, query=query, start=start, end=end)
+
+
+def fetch_pod_metric_history(addr, namespace, metric, scale_target, start, end):
+    pods = metric['pods']
+    metric_identifier = build_metric_identifier(pods['metric'])
+    name, group_kind = get_obj_name_and_group_kind(scale_target)
+    workload_external = metric_pb.WorkloadExternalQuery(group_kind=group_kind,
+                                                        namespace=namespace,
+                                                        name=name,
+                                                        metric=metric_identifier)
+    query = metric_pb.Query(type=metric_pb.WORKLOAD_EXTERNAL,
+                            workload_external=workload_external)
     return query_metrics(addr=addr, query=query, start=start, end=end)
 
 

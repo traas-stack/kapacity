@@ -190,13 +190,12 @@ def fetch_metrics_history(args, env, hp_cr):
             metric_ctx.resource_target = compute_resource_target(env.namespace, resource, scale_target)
             metric_ctx.resource_history = resource_history.rename(columns={'value': resource['name']})
         elif i == 1:
-            if metric_type != 'External':
+            if metric_type != 'Pods':
                 raise RuntimeError('MetricTypeError')
-            replica_history = query.fetch_replicas_metric_history(env.metrics_server_addr, env.namespace, metric,
-                                                                  scale_target, start, end)
+            replica_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
             metric_ctx.replicas_history = replica_history.rename(columns={'value': 'replicas'})
         else:
-            if metric_type != 'Object' and metric_type != 'External':
+            if metric_type != 'Pods' and metric_type != 'Object' and metric_type != 'External':
                 raise RuntimeError('MetricTypeError')
             metric_name = metric['name']
             traffic_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
