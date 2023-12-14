@@ -49,7 +49,7 @@ func (p *MetricProvider) Start(ctx context.Context) error {
 			Steps:    math.MaxInt32,
 			Cap:      p.metricsRelistInterval,
 		}, func(ctx context.Context) (bool, error) {
-			metricsListerLog.V(2).Info("start to relist metrics")
+			metricsListerLog.V(1).Info("start to relist metrics")
 			if err := p.updateObjectSeries(ctx); err != nil {
 				metricsListerLog.Error(err, "failed to update object series")
 				return false, nil
@@ -58,6 +58,7 @@ func (p *MetricProvider) Start(ctx context.Context) error {
 				metricsListerLog.Error(err, "failed to update external series")
 				return false, nil
 			}
+			metricsListerLog.V(1).Info("metrics relisted successfully")
 			return true, nil
 		}); err != nil {
 			metricsListerLog.Error(err, "backoff stopped with unexpected error")

@@ -72,6 +72,11 @@ import (
 	//+kubebuilder:scaffold:imports
 )
 
+const (
+	defaultQPS   = float64(20)
+	defaultBurst = 30
+)
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -110,6 +115,8 @@ func main() {
 		metricsAddr          string
 		probeAddr            string
 		enableLeaderElection bool
+		kubeAPIQPS           float64
+		kubeAPIBurst         int
 		reconcileConcurrency int
 		objectLabelSelector  string
 		objectFieldSelector  string
@@ -131,6 +138,10 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.Float64Var(&kubeAPIQPS, "kube-api-qps", defaultQPS, "QPS to use while talking with kubernetes apiserver."+
+		fmt.Sprintf("The number must be >= 0. If 0 will use defaultQPS: %f.", defaultQPS))
+	flag.IntVar(&kubeAPIBurst, "kube-api-burst", defaultBurst, "Burst to use while talking with kubernetes apiserver."+
+		fmt.Sprintf("The number must be >= 0. If 0 will use defaultBurst: %d.", defaultBurst))
 	flag.IntVar(&reconcileConcurrency, "reconcile-concurrency", 1, "The reconciliation concurrency of each controller.")
 	flag.StringVar(&objectLabelSelector, "object-label-selector", "", "The label selector to restrict controllers' list watch for objects.")
 	flag.StringVar(&objectFieldSelector, "object-field-selector", "", "The field selector to restrict controllers' list watch for objects.")
@@ -186,6 +197,14 @@ func main() {
 
 	cfg := ctrl.GetConfigOrDie()
 	rest.AddUserAgent(cfg, util.UserAgent)
+	if kubeAPIQPS <= 0 {
+		kubeAPIQPS = defaultQPS
+	}
+	cfg.QPS = float32(kubeAPIQPS)
+	if kubeAPIBurst <= 0 {
+		kubeAPIBurst = defaultBurst
+	}
+	cfg.Burst = kubeAPIBurst
 
 	var (
 		cacheObjectSelector = cache.ObjectSelector{}
