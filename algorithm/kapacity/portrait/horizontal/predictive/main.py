@@ -33,7 +33,6 @@ class EnvInfo:
 
 class MetricsContext:
     workload_identifier = None
-    resource_name = None
     resource_target = 0
     resource_history = None
     replicas_history = None
@@ -130,7 +129,7 @@ def predict_replicas(args, metric_ctx, pred_traffics):
         pred = estimator.estimate(history,
                                   pred_traffics,
                                   'timestamp',
-                                  metric_ctx.resource_name,
+                                  'resource',
                                   'replicas',
                                   traffic_col,
                                   metric_ctx.resource_target,
@@ -155,12 +154,10 @@ def merge_history_dict(history_dict):
 
 
 def resample_by_freq(old_df, freq, agg_funcs):
-    df = old_df.copy()
-    df = df.sort_values(by='timestamp', ascending=True)
+    df = old_df.sort_values(by='timestamp', ascending=True)
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
-    df = df.resample(rule=freq, on='timestamp').agg(agg_funcs)
-    df = df.rename_axis('timestamp').reset_index()
-    df['timestamp'] = df['timestamp'].astype('int64') // 10 ** 9
+    df = df.resample(rule=freq, on='timestamp').agg(agg_funcs).reset_index()
+    df['timestamp'] = df['timestamp'].astype('int64') // 1e9
     return df
 
 
@@ -185,18 +182,16 @@ def fetch_metrics_history(args, env, hp_cr):
                 resource = metric['containerResource']
             else:
                 raise RuntimeError('MetricTypeError')
-            resource_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
-            metric_ctx.resource_name = resource['name']
             metric_ctx.resource_target = compute_resource_target(env.namespace, resource, scale_target)
-            metric_ctx.resource_history = resource_history.rename(columns={'value': resource['name']})
+            resource_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
+            metric_ctx.resource_history = resource_history.rename(columns={'value': 'resource'})
         elif i == 1:
-            if metric_type != 'External':
+            if metric_type != 'Pods':
                 raise RuntimeError('MetricTypeError')
-            replica_history = query.fetch_replicas_metric_history(env.metrics_server_addr, env.namespace, metric,
-                                                                  scale_target, start, end)
+            replica_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
             metric_ctx.replicas_history = replica_history.rename(columns={'value': 'replicas'})
         else:
-            if metric_type != 'Object' and metric_type != 'External':
+            if metric_type != 'Pods' and metric_type != 'Object' and metric_type != 'External':
                 raise RuntimeError('MetricTypeError')
             metric_name = metric['name']
             traffic_history = query.fetch_metrics(env.metrics_server_addr, env.namespace, metric, scale_target, start, end)
