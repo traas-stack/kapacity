@@ -546,33 +546,25 @@ class Estimator(object):
 
     def predict(self,
                 df,
-                freq,
-                target_col,
-                time_col,
                 series_cols_dict):
         query_df, ctx_end_date = self.pre_processing_query(query=df,
-                                                           time_col=time_col,
-                                                           target_col=target_col,
-                                                           series_cols_dict=series_cols_dict,
-                                                           freq=freq)
+                                                           series_cols_dict=series_cols_dict)
         test_data, test_loader = self.get_data(
             flag='test',
             df=query_df,
             df_path=None)
         pred = self.test(test_loader=test_loader)
         result = self.post_processing_result(pred=pred,
-                                             ctx_end_date=ctx_end_date,
-                                             time_col=time_col,
-                                             target_col=target_col,
-                                             freq=freq)
+                                             ctx_end_date=ctx_end_date)
         return result
 
     def pre_processing_query(self,
                              query,
-                             time_col,
-                             target_col,
-                             series_cols_dict,
-                             freq):
+                             series_cols_dict):
+        time_col = self.config['time_col']
+        target_col = self.config['target_col']
+        freq = self.config['freq']
+
         test_df = query.sort_values([time_col]).reset_index(drop=True)
         ctx_end_date = test_df[time_col].iat[-1]
 
@@ -598,10 +590,11 @@ class Estimator(object):
 
     def post_processing_result(self,
                                pred,
-                               ctx_end_date,
-                               time_col,
-                               target_col,
-                               freq):
+                               ctx_end_date):
+        time_col = self.config['time_col']
+        target_col = self.config['target_col']
+        freq = self.config['freq']
+
         result_df = pd.DataFrame()
         pred_len = self.config['prediction_length']
         for i in range(1, pred_len + 1):
