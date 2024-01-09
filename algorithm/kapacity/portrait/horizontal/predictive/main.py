@@ -72,19 +72,19 @@ def parse_args():
     parser.add_argument('--tsf-model-path',
                         help='dir path containing related files of the time series forecasting model',
                         required=True, default='/opt/kapacity/timeseries/forcasting/model')
-    parser.add_argument('--tsf-freq', help='frequency (precision) of the time series forecasting model,'
-                                           'should be the same as set for training', required=True)
     parser.add_argument('--tsf-dataloader-num-workers', help='number of worker subprocesses to use for data loading'
                                                              'of the time series forecasting model',
                         required=False, default=0)
-    parser.add_argument('--re-history-len', help='history length of training data for replicas estimation',
+    parser.add_argument('--re-history-len', help='history length of training data for replicas estimation,'
+                                                 'should be longer than the context duration of the time series forecasting model',
                         required=True)
     parser.add_argument('--re-time-delta-hours', help='time zone offset for replicas estimation model',
                         required=True)
     parser.add_argument('--re-test-dataset-size-in-seconds',
                         help='size of test dataset in seconds for replicas estimation model',
                         required=False, default=86400)
-    parser.add_argument('--scaling-freq', help='frequency of scaling, the duration should be larger than tsf-freq',
+    parser.add_argument('--scaling-freq', help='frequency of scaling, the duration should be larger than the frequency'
+                                               'of the time series forecasting model',
                         required=True)
     args = parser.parse_args()
     return args
@@ -105,11 +105,8 @@ def predict_traffics(args, metric_ctx):
     df = None
     for key in metric_ctx.traffics_history_dict:
         traffic_history = resample_by_freq(metric_ctx.traffics_history_dict[key], freq, {'value': 'mean'})
-        traffic_history = traffic_history[len(traffic_history) - context_length:len(traffic_history)]
+        traffic_history = traffic_history[len(traffic_history)-context_length:len(traffic_history)]
         df_traffic = model.predict(df=traffic_history,
-                                   freq=args.tsf_freq,
-                                   target_col='value',
-                                   time_col='timestamp',
                                    series_cols_dict={'workload': metric_ctx.workload_identifier, 'metric': key})
         df_traffic.rename(columns={'value': key}, inplace=True)
         if df is None:
