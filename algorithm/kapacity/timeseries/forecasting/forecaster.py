@@ -54,11 +54,11 @@ class TimeSeriesDataset(Dataset):
         self.seq_len = self.config['context_length'] + self.config['prediction_length']
         self.config = config
         self.features_map = {
+            'min': ['minute', 'hour', 'dayofweek'],
+            '1min': ['minute', 'hour', 'dayofweek'],
+            '10min': ['minute', 'hour', 'dayofweek', 'day'],
             'H': ['hour', 'dayofweek', 'day'],
             '1H': ['hour', 'dayofweek', 'day'],
-            'min': ['minute', 'hour', 'dayofweek', 'day'],
-            '1min': ['minute', 'hour', 'dayofweek', 'day'],
-            '10min': ['minute', 'hour', 'dayofweek', 'day'],
             'D': ['dayofweek', 'day'],
             '1D': ['dayofweek', 'day']
         }
@@ -319,15 +319,15 @@ class Estimator(object):
         """
         super(Estimator, self).__init__()
         self.config = config
-        assert self.config['freq'] in ['H', '1H', 'min', '1min', '10min', 'D',
-                                       '1D'], "freq must be in ['H','1H','min','1min','10min','D','1D']"
+        assert self.config['freq'] in ['min', '1min', '10min', 'H', '1H', 'D', '1D'], \
+            "freq must be in ['min','1min','10min','H','1H','D','1D']"
 
         self.feat_cardinality_map = {
+            'min': [60, 24, 8],
+            '1min': [60, 24, 8],
+            '10min': [60, 24, 8, 32],
             'H': [24, 8, 32],
             '1H': [24, 8, 32],
-            'min': [60, 24, 8, 32],
-            '1min': [60, 24, 8, 32],
-            '10min': [60, 24, 8, 32],
             'D': [8, 32],
             '1D': [8, 32]
         }
