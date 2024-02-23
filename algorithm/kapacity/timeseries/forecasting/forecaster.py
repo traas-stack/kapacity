@@ -52,7 +52,6 @@ class TimeSeriesDataset(Dataset):
         self.pred_len = self.config['prediction_length']
         self.context_len = self.config['context_length']
         self.seq_len = self.config['context_length'] + self.config['prediction_length']
-        self.config = config
         self.features_map = {
             'min': ['minute', 'hour', 'dayofweek'],
             '1min': ['minute', 'hour', 'dayofweek'],
