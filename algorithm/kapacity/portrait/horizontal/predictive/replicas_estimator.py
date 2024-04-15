@@ -113,6 +113,13 @@ class Estimator(object):
         df.sort_values(by=self.time_col, inplace=True)
         df = df.reset_index(drop=True)
 
+        # scale resource to 0~100
+        resource_max = df[self.resource_col].max()
+        resource_scaling_factor = 1 if resource_max <= 100 else 10**np.ceil(np.log10(resource_max / 100))
+        self.logger.info(f'resource scaling factor: {resource_scaling_factor}')
+        df[self.resource_col] = df[self.resource_col] / resource_scaling_factor
+        self.resource_target = self.resource_target / resource_scaling_factor
+
         features = self.traffic_cols
 
         self.logger.info(f'checkout before filtering NaN: '
