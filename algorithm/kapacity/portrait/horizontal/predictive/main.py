@@ -83,6 +83,16 @@ def parse_args():
     parser.add_argument('--re-test-dataset-size-in-seconds',
                         help='size of test dataset in seconds for replicas estimation model',
                         required=False, default=86400)
+    parser.add_argument('--re-min-correlation-allowed',
+                        help='minimum allowed correlation of replicas estimation model,'
+                             'the estimation would fail if the model\'s correlation is lower than this threshold,'
+                             'this arg should be a float number within range [0, 1]',
+                        required=False, default=0.9)
+    parser.add_argument('--re-max-mse-allowed',
+                        help='maximum allowed MSE of replicas estimation model,'
+                             'the estimation would fail if the model\'s MSE is larger than this threshold,'
+                             'this arg should be a float number within range [0, +∞)',
+                        required=False, default=10.0)
     parser.add_argument('--scaling-freq', help='frequency of scaling, the duration should be larger than the frequency'
                                                'of the time series forecasting model',
                         required=True)
@@ -131,12 +141,14 @@ def predict_replicas(args, metric_ctx, pred_traffics):
                                   traffic_col,
                                   metric_ctx.resource_target,
                                   int(args.re_time_delta_hours),
-                                  int(args.re_test_dataset_size_in_seconds))
+                                  int(args.re_test_dataset_size_in_seconds),
+                                  float(args.re_min_correlation_allowed),
+                                  float(args.re_max_mse_allowed))
         if 'NO_RESULT' in pred['rule_code'].unique():
             raise RuntimeError('there exist points that no replica number would meet the resource target, please consider setting a more reasonable resource target')
         return pred
     except estimator.EstimationException as e:
-        raise RuntimeError("replicas estimation failed, this may be caused by insufficient or irregular history data") from e
+        raise RuntimeError(f'replicas estimation failed, this may be caused by insufficient or irregular history data, detailed estimation info: {e.info}') from e
 
 
 def merge_history_dict(history_dict):

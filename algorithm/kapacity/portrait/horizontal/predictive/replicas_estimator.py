@@ -113,6 +113,13 @@ class Estimator(object):
         df.sort_values(by=self.time_col, inplace=True)
         df = df.reset_index(drop=True)
 
+        # scale resource to 0~100
+        resource_max = df[self.resource_col].max()
+        resource_scaling_factor = 1 if resource_max <= 100 else 10**np.ceil(np.log10(resource_max / 100))
+        self.logger.info(f'resource scaling factor: {resource_scaling_factor}')
+        df[self.resource_col] = df[self.resource_col] / resource_scaling_factor
+        self.resource_target = self.resource_target / resource_scaling_factor
+
         features = self.traffic_cols
 
         self.logger.info(f'checkout before filtering NaN: '
@@ -628,7 +635,12 @@ class Estimator(object):
 
 
 class EstimationException(Exception):
-    pass
+    def __init__(self, message, info):
+        self.message = message
+        self.info = info
+
+    def __str__(self):
+        return self.message
 
 
 def estimate(data: pd.DataFrame,
@@ -639,7 +651,9 @@ def estimate(data: pd.DataFrame,
              traffic_cols: list[str],
              resource_target: float,
              time_delta_hours: int,
-             test_dataset_size_in_seconds: int = 86400) -> pd.DataFrame:
+             test_dataset_size_in_seconds: int = 86400,
+             min_correlation_allowed: float = 0.9,
+             max_mse_allowed: float = 10.0) -> pd.DataFrame:
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s: %(message)s')
     logger = logging.getLogger()
@@ -660,19 +674,30 @@ def estimate(data: pd.DataFrame,
     estimator.test()
     logger.info(f'********* testing cost time: {time.time() - st10} *********')
 
-    if (estimator.pearsonr[0] >= 0.9 and estimator.pearsonr[1] < 0.01
-            and estimator.big_e_10 == 0 and estimator.mse < 10):
+    logger.info(f'********* [linear] correlation: {estimator.pearsonr[0]}, significance: {estimator.pearsonr[1]}, big_e_10: {estimator.big_e_10}, mse: {estimator.mse} *********')
+    logger.info(f'********* [residual] correlation: {estimator.pearsonr_rf[0]}, significance: {estimator.pearsonr_rf[1]}, big_e_10: {estimator.big_e_10_rf}, mse: {estimator.mse_rf} *********')
+
+    if (estimator.pearsonr[0] >= min_correlation_allowed and estimator.pearsonr[1] < 0.01
+            and estimator.big_e_10 == 0 and estimator.mse <= max_mse_allowed):
         st10 = time.time()
         estimator.policy_linear()
         logger.info(f'********* linear policy cost time: {time.time() - st10} *********')
         return estimator.output
 
-    elif (estimator.pearsonr_rf[0] >= 0.9 and estimator.pearsonr_rf[1] < 0.01 and estimator.big_e_10_rf == 0
-          and estimator.mse_rf < 10 and estimator.pearsonr[0] >= 0.6 and estimator.pearsonr[1] < 0.01):
+    elif (estimator.pearsonr_rf[0] >= min_correlation_allowed and estimator.pearsonr_rf[1] < 0.01 and estimator.big_e_10_rf == 0
+          and estimator.mse_rf <= max_mse_allowed and estimator.pearsonr[0] >= 0.6 and estimator.pearsonr[1] < 0.01):
         st10 = time.time()
         estimator.policy_residual()
         logger.info(f'********* residual policy cost time: {time.time() - st10} *********')
         return estimator.output
 
     else:
-        raise EstimationException("no policy fits")
+        raise EstimationException('no policy fits',
+                                  {'linear': {'correlation': estimator.pearsonr[0],
+                                              'significance': estimator.pearsonr[1],
+                                              'big_e_10': estimator.big_e_10,
+                                              'mse': estimator.mse},
+                                   'residual': {'correlation': estimator.pearsonr_rf[0],
+                                                'significance': estimator.pearsonr_rf[1],
+                                                'big_e_10': estimator.big_e_10_rf,
+                                                'mse': estimator.mse_rf}})
