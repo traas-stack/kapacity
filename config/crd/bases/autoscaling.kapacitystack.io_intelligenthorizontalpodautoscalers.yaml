@@ -121,6 +121,10 @@ spec:
                     description: ScaleDown is the behavior configuration for scaling
                       down.
                     properties:
+                      disabled:
+                        description: Disabled means if the scaling of this direction
+                          is disabled.
+                        type: boolean
                       grayStrategy:
                         description: GrayStrategy is the configuration of the strategy
                           for gray change of replicas. If not set, gray change will
@@ -171,6 +175,10 @@ spec:
                     description: ScaleUp is the behavior configuration for scaling
                       up.
                     properties:
+                      disabled:
+                        description: Disabled means if the scaling of this direction
+                          is disabled.
+                        type: boolean
                       grayStrategy:
                         description: GrayStrategy is the configuration of the strategy
                           for gray change of replicas. If not set, gray change will

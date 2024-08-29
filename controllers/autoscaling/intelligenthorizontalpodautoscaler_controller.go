@@ -245,6 +245,7 @@ func (r *IntelligentHorizontalPodAutoscalerReconciler) Reconcile(ctx context.Con
 			rp.Spec.CutoffReplicas = replicaData.CutoffReplicas
 			rp.Spec.StandbyReplicas = replicaData.StandbyReplicas
 			rp.Spec.Paused = ihpa.Spec.Paused
+			rp.Spec.AllowedScalingDirection = getAllowedScalingDirection(ihpa)
 			if ihpa.Spec.Behavior.ReplicaProfile != nil {
 				rp.Spec.Behavior = *ihpa.Spec.Behavior.ReplicaProfile
 			} else {
@@ -317,14 +318,29 @@ func newReplicaProfile(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutosca
 			},
 		},
 		Spec: autoscalingv1alpha1.ReplicaProfileSpec{
-			ScaleTargetRef:  ihpa.Spec.ScaleTargetRef,
-			OnlineReplicas:  replicaData.OnlineReplicas,
-			CutoffReplicas:  replicaData.CutoffReplicas,
-			StandbyReplicas: replicaData.StandbyReplicas,
-			Paused:          ihpa.Spec.Paused,
-			Behavior:        behavior,
+			ScaleTargetRef:          ihpa.Spec.ScaleTargetRef,
+			OnlineReplicas:          replicaData.OnlineReplicas,
+			CutoffReplicas:          replicaData.CutoffReplicas,
+			StandbyReplicas:         replicaData.StandbyReplicas,
+			Paused:                  ihpa.Spec.Paused,
+			AllowedScalingDirection: getAllowedScalingDirection(ihpa),
+			Behavior:                behavior,
 		},
 	}
+}
+
+func getAllowedScalingDirection(ihpa *autoscalingv1alpha1.IntelligentHorizontalPodAutoscaler) autoscalingv1alpha1.ScalingDirection {
+	up, down := !ihpa.Spec.Behavior.ScaleUp.Disabled, !ihpa.Spec.Behavior.ScaleDown.Disabled
+	if up && down {
+		return autoscalingv1alpha1.ScalingDirectionBoth
+	}
+	if up {
+		return autoscalingv1alpha1.ScalingDirectionUp
+	}
+	if down {
+		return autoscalingv1alpha1.ScalingDirectionDown
+	}
+	return autoscalingv1alpha1.ScalingDirectionNeither
 }
 
 func defaultReplicaProfileBehavior() autoscalingv1alpha1.ReplicaProfileBehavior {

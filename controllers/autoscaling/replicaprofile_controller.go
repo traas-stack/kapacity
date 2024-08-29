@@ -159,7 +159,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	rp.Status.CutoffReplicas = int32(len(currentRunningPods[autoscalingv1alpha1.PodStateCutoff]))
 	rp.Status.StandbyReplicas = int32(len(currentRunningPods[autoscalingv1alpha1.PodStateStandby]))
 
-	ensured := rp.Status.OnlineReplicas == rp.Spec.OnlineReplicas &&
+	ensured := isOnlineReplicasEnsured(rp) &&
 		rp.Status.CutoffReplicas == rp.Spec.CutoffReplicas &&
 		rp.Status.StandbyReplicas == rp.Spec.StandbyReplicas
 	if ensured {
@@ -218,7 +218,11 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 
-		sm := pod.NewStateManager(rp, podSorter, currentRunningPods)
+		sm := pod.NewStateManager(map[autoscalingv1alpha1.PodState]int32{
+			autoscalingv1alpha1.PodStateOnline:  getDesiredOnlineReplicas(rp),
+			autoscalingv1alpha1.PodStateCutoff:  rp.Spec.CutoffReplicas,
+			autoscalingv1alpha1.PodStateStandby: rp.Spec.StandbyReplicas,
+		}, currentRunningPods, podSorter)
 		change, err := sm.CalculateStateChange(ctx)
 		if err != nil {
 			l.Error(err, "failed to calculate state change")
@@ -309,7 +313,7 @@ func (r *ReplicaProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Scale replicas if needed
-	desiredReplicas := rp.Spec.OnlineReplicas + rp.Spec.CutoffReplicas + rp.Spec.StandbyReplicas
+	desiredReplicas := getDesiredOnlineReplicas(rp) + rp.Spec.CutoffReplicas + rp.Spec.StandbyReplicas
 	if desiredReplicas != scale.Spec.Replicas {
 		l.Info("rescale target workload", "oldReplicas", scale.Spec.Replicas, "newReplicas", desiredReplicas)
 		r.Eventf(rp, corev1.EventTypeNormal, "UpdateScale", "rescale target workload from %d to %d replicas", scale.Spec.Replicas, desiredReplicas)
@@ -510,4 +514,30 @@ func (r *ReplicaProfileReconciler) setPodState(ctx context.Context, p *corev1.Po
 
 func setReplicaProfileCondition(rp *autoscalingv1alpha1.ReplicaProfile, conditionType autoscalingv1alpha1.ReplicaProfileConditionType, status metav1.ConditionStatus, reason, message string) {
 	rp.Status.Conditions = util.SetConditionInList(rp.Status.Conditions, string(conditionType), status, rp.Generation, reason, message)
+}
+
+func isOnlineReplicasEnsured(rp *autoscalingv1alpha1.ReplicaProfile) bool {
+	switch rp.Spec.AllowedScalingDirection {
+	case autoscalingv1alpha1.ScalingDirectionUp:
+		return rp.Status.OnlineReplicas >= rp.Spec.OnlineReplicas
+	case autoscalingv1alpha1.ScalingDirectionDown:
+		return rp.Status.OnlineReplicas <= rp.Spec.OnlineReplicas
+	case autoscalingv1alpha1.ScalingDirectionNeither:
+		return true
+	default:
+		return rp.Status.OnlineReplicas == rp.Spec.OnlineReplicas
+	}
+}
+
+func getDesiredOnlineReplicas(rp *autoscalingv1alpha1.ReplicaProfile) int32 {
+	switch rp.Spec.AllowedScalingDirection {
+	case autoscalingv1alpha1.ScalingDirectionUp:
+		return util.MaxInt32(rp.Spec.OnlineReplicas, rp.Status.OnlineReplicas)
+	case autoscalingv1alpha1.ScalingDirectionDown:
+		return util.MinInt32(rp.Spec.OnlineReplicas, rp.Status.OnlineReplicas)
+	case autoscalingv1alpha1.ScalingDirectionNeither:
+		return rp.Status.OnlineReplicas
+	default:
+		return rp.Spec.OnlineReplicas
+	}
 }

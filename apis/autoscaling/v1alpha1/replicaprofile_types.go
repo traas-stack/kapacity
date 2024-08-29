@@ -59,12 +59,29 @@ type ReplicaProfileSpec struct {
 	// +optional
 	Paused bool `json:"paused,omitempty"`
 
+	// AllowedScalingDirection is the allowed scaling direction.
+	// Note that it only cares about online replicas.
+	// It defaults to Both.
+	// +optional
+	// +kubebuilder:validation:Enum=Both;Neither;Up;Down
+	// +kubebuilder:default=Both
+	AllowedScalingDirection ScalingDirection `json:"allowedScalingDirection"`
+
 	// Behavior configures the behavior of ReplicaProfile.
 	// If not set, default behavior will be set.
 	// +optional
 	// +kubebuilder:default={podSorter:{type:"WorkloadDefault"},podTrafficController:{type:"ReadinessGate"}}
 	Behavior ReplicaProfileBehavior `json:"behavior"`
 }
+
+type ScalingDirection string
+
+const (
+	ScalingDirectionBoth    ScalingDirection = "Both"
+	ScalingDirectionNeither ScalingDirection = "Neither"
+	ScalingDirectionUp      ScalingDirection = "Up"
+	ScalingDirectionDown    ScalingDirection = "Down"
+)
 
 // ReplicaProfileBehavior defines the behavior of ReplicaProfile.
 type ReplicaProfileBehavior struct {
