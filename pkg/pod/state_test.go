@@ -250,7 +250,11 @@ func TestCalculateStateChange(t *testing.T) {
 
 	for _, testCase := range testCases {
 		statefulSet := &workload.StatefulSet{}
-		stateManager := NewStateManager(testCase.rp, statefulSet, currentPodMap)
+		stateManager := NewStateManager(map[autoscalingv1alpha1.PodState]int32{
+			autoscalingv1alpha1.PodStateOnline:  testCase.rp.Spec.OnlineReplicas,
+			autoscalingv1alpha1.PodStateCutoff:  testCase.rp.Spec.CutoffReplicas,
+			autoscalingv1alpha1.PodStateStandby: testCase.rp.Spec.StandbyReplicas,
+		}, currentPodMap, statefulSet)
 
 		stateChange, err := stateManager.CalculateStateChange(context.Background())
 		assert.Nil(t, err)

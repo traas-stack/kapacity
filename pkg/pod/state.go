@@ -106,30 +106,21 @@ func newStateInfo() *stateInfo {
 
 // StateManager provides a method to calculate pod state change.
 type StateManager struct {
-	rp         *autoscalingv1alpha1.ReplicaProfile
-	sorter     sorter.Interface
 	statesInfo map[autoscalingv1alpha1.PodState]*stateInfo
 	podNameMap map[string]*corev1.Pod
+	sorter     sorter.Interface
 }
 
 // NewStateManager build a state manager to calculate pod state change based on given spec and status.
-func NewStateManager(rp *autoscalingv1alpha1.ReplicaProfile, sorter sorter.Interface, currentRunningPods map[autoscalingv1alpha1.PodState][]*corev1.Pod) *StateManager {
+func NewStateManager(desiredReplicas map[autoscalingv1alpha1.PodState]int32, currentRunningPods map[autoscalingv1alpha1.PodState][]*corev1.Pod, sorter sorter.Interface) *StateManager {
 	sm := &StateManager{
-		rp:         rp,
-		sorter:     sorter,
 		statesInfo: make(map[autoscalingv1alpha1.PodState]*stateInfo, len(defaultStatesOrdered)),
 		podNameMap: make(map[string]*corev1.Pod),
+		sorter:     sorter,
 	}
 	for _, state := range defaultStatesOrdered {
 		info := newStateInfo()
-		switch state {
-		case autoscalingv1alpha1.PodStateOnline:
-			info.DesiredReplicas = int(rp.Spec.OnlineReplicas)
-		case autoscalingv1alpha1.PodStateCutoff:
-			info.DesiredReplicas = int(rp.Spec.CutoffReplicas)
-		case autoscalingv1alpha1.PodStateStandby:
-			info.DesiredReplicas = int(rp.Spec.StandbyReplicas)
-		}
+		info.DesiredReplicas = int(desiredReplicas[state])
 		for _, pod := range currentRunningPods[state] {
 			info.CurrentPodNames.Insert(pod.Name)
 			sm.podNameMap[pod.Name] = pod

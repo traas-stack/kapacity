@@ -39,6 +39,16 @@ spec:
           spec:
             description: ReplicaProfileSpec defines the desired state of ReplicaProfile.
             properties:
+              allowedScalingDirection:
+                default: Both
+                description: AllowedScalingDirection is the allowed scaling direction.
+                  Note that it only cares about online replicas. It defaults to Both.
+                enum:
+                - Both
+                - Neither
+                - Up
+                - Down
+                type: string
               behavior:
                 default:
                   podSorter:

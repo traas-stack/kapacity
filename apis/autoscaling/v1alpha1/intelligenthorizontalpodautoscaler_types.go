@@ -197,6 +197,10 @@ type IntelligentHorizontalPodAutoscalerBehavior struct {
 
 // ScalingBehavior defines the scaling behavior for one direction.
 type ScalingBehavior struct {
+	// Disabled means if the scaling of this direction is disabled.
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
+
 	// GrayStrategy is the configuration of the strategy for gray change of replicas.
 	// If not set, gray change will be disabled.
 	// +optional
