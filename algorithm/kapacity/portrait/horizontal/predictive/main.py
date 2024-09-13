@@ -54,13 +54,11 @@ def main():
     # 4. predict replicas
     pred_replicas = predict_replicas(args, metrics_ctx, pred_traffics)
 
-    # 5. resample predict replicas by scaling frequency
-    pred_replicas_by_freq = resample_by_freq(pred_replicas[['timestamp', 'pred_replicas']],
-                                             args.scaling_freq,
-                                             {'pred_replicas': 'max'})
+    # 5. adjust predict replicas by scaling frequency and scale up ahead seconds
+    adjusted_pred_replicas = adjust_pred_replicas(args, pred_replicas)
 
     # 6. write result to configmap
-    write_pred_replicas_to_config_map(args, env, hp_cr, pred_replicas_by_freq)
+    write_pred_replicas_to_config_map(args, env, hp_cr, adjusted_pred_replicas)
 
     return
 
@@ -96,6 +94,9 @@ def parse_args():
     parser.add_argument('--scaling-freq', help='frequency of scaling, the duration should be larger than the frequency'
                                                'of the time series forecasting model',
                         required=True)
+    parser.add_argument('--scale-up-ahead-seconds', help='ahead time seconds of scaling up which can be used for'
+                                                             'application startup and warm up',
+                        required=False, default=0)
     args = parser.parse_args()
     return args
 
@@ -160,6 +161,16 @@ def merge_history_dict(history_dict):
             df1 = history_dict[key].rename(columns={'value': key})
             df = pd.merge(left=df, right=df1, on='timestamp')
     return df
+
+
+def adjust_pred_replicas(args, pred_replicas):
+    adjusted = resample_by_freq(pred_replicas[['timestamp', 'pred_replicas']],
+                     args.scaling_freq,
+                     {'pred_replicas': 'max'})
+    scale_up_ahead_seconds = int(args.scale_up_ahead_seconds)
+    if scale_up_ahead_seconds > 0:
+        adjusted.loc[adjusted['pred_replicas'] > adjusted['pred_replicas'].shift(1), 'timestamp'] -= scale_up_ahead_seconds
+    return adjusted
 
 
 def resample_by_freq(old_df, freq, agg_funcs):
